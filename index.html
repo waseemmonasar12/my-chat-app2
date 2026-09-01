@@ -45,47 +45,182 @@
         <div class="ticker-move"><span class="ticker-text" id="tickerMsg"></span></div>
     </div>
 
-    <!-- SMART AUTH SCREEN -->
+    <!-- TOP PROGRESS BAR -->
+    <div id="authProgressBar" class="auth-top-progress"></div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="authToastContainer" class="auth-toast-container"></div>
+
+    <!-- CONFETTI CANVAS -->
+    <canvas id="confettiCanvas" style="position:fixed; inset:0; pointer-events:none; z-index:99999; display:none;"></canvas>
+
+    <!-- SMART AUTH SCREEN (FUTURISTIC ULTRA-LUXURY GLASSMORPHISM) -->
     <div id="auth-screen" class="auth-wrapper">
-        <div class="auth-card">
-            <div style="font-size: 54px; margin-bottom: 8px; animation: float 3s ease infinite;">🛡️</div>
-            <h2 style="margin:0 0 4px; font-size: 26px; font-weight: 900; color: white;">Chat Secure V6</h2>
-            <p style="color: var(--primary); margin-bottom: 18px; font-size: 13px; font-weight: bold;">نظام المحادثة المشفر فائق الأمان والذكاء</p>
-            
-            <div class="auth-tabs">
-                <div class="auth-tab active" id="tabLoginBtn" onclick="switchAuthTab('login')">🚪 تسجيل الدخول</div>
-                <div class="auth-tab" id="tabRegisterBtn" onclick="switchAuthTab('register')">✨ إنشاء حساب ذكي</div>
+        <!-- Floating Cyber Grid & Light Orbs -->
+        <div class="auth-grid-overlay"></div>
+        <div class="auth-orb auth-orb-1"></div>
+        <div class="auth-orb auth-orb-2"></div>
+        <div class="auth-orb auth-orb-3"></div>
+        <canvas id="authParticlesCanvas" class="auth-particles-canvas"></canvas>
+
+        <div class="auth-card" id="mainAuthCard">
+            <!-- Top Status Row -->
+            <div class="auth-top-status-row">
+                <div class="auth-status-pill online" id="authConnectionStatus">
+                    <span class="auth-status-dot" id="authStatusDot"></span>
+                    <span id="authStatusText">متصل بالسيرفر الآمن</span>
+                </div>
+                <div class="auth-status-pill">
+                    <i class="fas fa-shield-alt" style="color:var(--admin-gold);"></i>
+                    <span>تشفير AES-256 E2E 🔒</span>
+                </div>
             </div>
 
+            <!-- Shield Logo & Branding -->
+            <div class="auth-shield-wrap" id="authLogoShield">
+                <span>🛡️</span>
+            </div>
+            <h1 class="auth-title">Chat Secure V6</h1>
+            <div class="auth-edition-badge">
+                <i class="fas fa-sparkles"></i>
+                <span>Ultimate Secure Edition</span>
+                <i class="fas fa-shield-check"></i>
+            </div>
+            <div class="auth-gold-divider"></div>
+            
+            <!-- Auth Switch Tabs -->
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tabLoginBtn" onclick="switchAuthTab('login')">
+                    <i class="fas fa-door-open"></i>
+                    <span>تسجيل الدخول</span>
+                </div>
+                <div class="auth-tab" id="tabRegisterBtn" onclick="switchAuthTab('register')">
+                    <i class="fas fa-user-plus"></i>
+                    <span>إنشاء حساب ذكي</span>
+                </div>
+            </div>
+
+            <!-- Form Section -->
             <div id="authFormSection">
-                <input type="text" id="usernameInput" placeholder="👤 اسم المستخدم" style="margin-bottom: 12px;" autocomplete="username">
-                <input type="password" id="passwordInput" placeholder="🔒 كلمة السر" style="margin-bottom: 12px;" autocomplete="current-password">
+                <!-- Username Input -->
+                <div class="auth-input-group">
+                    <label for="usernameInput">اسم المستخدم</label>
+                    <div class="auth-input-wrapper">
+                        <div class="auth-input-icon"><i class="fas fa-user-shield"></i></div>
+                        <input type="text" id="usernameInput" class="auth-input" placeholder="أدخل اسم المستخدم..." autocomplete="username">
+                    </div>
+                </div>
+
+                <!-- Password Input -->
+                <div class="auth-input-group">
+                    <label for="passwordInput">كلمة السر المشفرة</label>
+                    <div class="auth-input-wrapper">
+                        <div class="auth-input-icon"><i class="fas fa-key-skeleton"></i></div>
+                        <input type="password" id="passwordInput" class="auth-input" placeholder="أدخل كلمة السر..." autocomplete="current-password" oninput="handlePasswordStrength(this.value)">
+                        <button type="button" class="toggle-pass-btn" id="togglePassBtn" onclick="toggleAuthPasswordVisibility()" title="إظهار / إخفاء كلمة السر">
+                            <i class="fas fa-eye" id="togglePassIcon"></i>
+                        </button>
+                    </div>
+                    <!-- Password Strength Meter -->
+                    <div class="password-strength-wrap" id="passStrengthWrap" style="display:none;">
+                        <div class="strength-bar-bg">
+                            <div class="strength-bar-fill" id="strengthBarFill"></div>
+                        </div>
+                        <div class="strength-text">
+                            <span>قوة كلمة السر:</span>
+                            <span id="strengthLabel" style="font-weight:bold;">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Remember Me & Forgot Password Row -->
+                <div class="remember-forgot-row">
+                    <label class="custom-checkbox-label">
+                        <input type="checkbox" id="rememberMeCheck" checked>
+                        <span>تذكر بياناتي في هذا الجهاز</span>
+                    </label>
+                    <a class="forgot-pass-link" onclick="openForgotPasswordModal()">نسيت كلمة السر؟</a>
+                </div>
                 
-                <!-- Verification Code for Admin -->
-                <div id="telegramVerificationSection" class="hidden" style="margin-top: 10px; background: rgba(255,215,0,0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,215,0,0.2);">
-                    <p style="color: var(--admin-gold); font-size: 13px; margin-bottom: 8px; font-weight: bold;">
-                        <i class="fab fa-telegram"></i> تم إرسال رمز التحقق إلى بوت تيليجرام
-                    </p>
-                    <input type="text" id="telegramCodeInput" placeholder="رمز التحقق (6 أرقام)" style="text-align: center; letter-spacing: 6px; font-size: 20px; font-weight: bold;">
+                <!-- 6-Digit OTP Verification Section -->
+                <div id="telegramVerificationSection" class="otp-verification-section hidden">
+                    <div class="otp-title">
+                        <i class="fab fa-telegram-plane" style="font-size:18px;"></i>
+                        <span>رمز التحقق المباشر عبر تيليجرام</span>
+                    </div>
+                    <p class="otp-desc">تم إرسال رمز أمان مكون من 6 أرقام إلى حسابك في تيليجرام</p>
+                    
+                    <div class="otp-inputs-grid">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit1" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit2" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit3" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit4" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit5" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="otpDigit6" autocomplete="off" inputmode="numeric">
+                    </div>
+                    
+                    <div class="otp-timer-row">
+                        <div class="otp-timer-badge">
+                            <i class="fas fa-stopwatch"></i>
+                            <span id="otpCountdownText">05:00</span>
+                        </div>
+                        <button type="button" class="otp-resend-btn" id="resendOtpBtn" onclick="requestNewTelegramCode()">
+                            <i class="fas fa-redo-alt" id="resendOtpIcon"></i>
+                            <span>إعادة إرسال الرمز</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Approval Waiting Status -->
-                <div id="approvalStatusBox" class="hidden" style="margin-top: 12px; background: rgba(0,168,132,0.12); padding: 12px; border-radius: 10px; border: 1px solid var(--primary);">
-                    <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--primary); font-weight:bold;">
-                        <i class="fas fa-spinner fa-spin"></i>
+                <div id="approvalStatusBox" class="approval-status-box hidden">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--primary); font-weight:bold; font-size:13px;">
+                        <i class="fas fa-circle-notch fa-spin"></i>
                         <span>بانتظار موافقة المشرف عبر تيليجرام...</span>
                     </div>
                     <p style="font-size: 11px; color: var(--text-gray); margin-top: 6px;" id="approvalDetailsText">تم إرسال بصمة جهازك وعنوان IP للمشرف للموافقة</p>
                 </div>
 
-                <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="action-btn">🚪 دخول آمن</button>
-                <p id="loginError" style="color: var(--delete-red); font-size: 13px; margin-top: 12px; min-height: 18px;"></p>
+                <!-- Main Submit Button -->
+                <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="auth-submit-btn">
+                    <i class="fas fa-lock-open-alt" id="authSubmitIcon"></i>
+                    <span id="authSubmitText">دخول آمن وشامل</span>
+                </button>
+                
+                <!-- Error / Info Display -->
+                <p id="loginError" style="color: var(--delete-red); font-size: 13px; margin-top: 10px; min-height: 18px; font-weight: bold;"></p>
             </div>
 
-            <div style="margin-top: 16px; font-size: 11px; color: var(--text-gray); display:flex; justify-content:center; gap:12px;">
-                <span><i class="fas fa-lock"></i> تشفير AES-256</span>
-                <span><i class="fas fa-mobile-alt"></i> حساب واحد لكل جهاز</span>
-                <span><i class="fab fa-telegram"></i> حماية تيليجرام</span>
+            <!-- Alternative Quick Login Methods -->
+            <div class="auth-quick-divider">
+                <span>أو الدخول السريع عبر</span>
+            </div>
+
+            <div class="auth-quick-row">
+                <button type="button" class="auth-quick-btn" onclick="loginWithBiometrics()" title="تسجيل الدخول بالبصمة / Face ID">
+                    <i class="fas fa-fingerprint"></i>
+                    <span>بصمة الإصبع</span>
+                </button>
+                <button type="button" class="auth-quick-btn" onclick="openQrLoginModal()" title="تسجيل الدخول بالمسح السريع">
+                    <i class="fas fa-qrcode"></i>
+                    <span>رمز QR</span>
+                </button>
+                <button type="button" class="auth-quick-btn" onclick="loginAsGuest()" title="دخول تجريبي كزائر">
+                    <i class="fas fa-user-clock"></i>
+                    <span>دخول كضيف</span>
+                </button>
+            </div>
+
+            <!-- Last Login Session Badge -->
+            <div id="lastLoginBadge" class="last-login-badge" style="display:none;">
+                <i class="fas fa-history" style="color:var(--primary);"></i>
+                <span id="lastLoginText">آخر تسجيل دخول: -</span>
+            </div>
+
+            <!-- Security Footer -->
+            <div class="auth-footer-features">
+                <span><i class="fas fa-shield-virus" style="color:var(--primary);"></i> تشفير AES-256</span>
+                <span><i class="fas fa-mobile-android-alt" style="color:#4a90e2;"></i> حساب واحد لكل جهاز</span>
+                <span><i class="fab fa-telegram" style="color:var(--admin-gold);"></i> حماية 2FA فورية</span>
             </div>
         </div>
     </div>
@@ -758,6 +893,79 @@
             <textarea id="noteText" placeholder="اكتب ملاحظاتك وأفكارك هنا..." rows="4"></textarea>
             <button onclick="createNote()" class="action-btn">📝 حفظ الملاحظة</button>
             <button onclick="closeModal('noteModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- FORGOT PASSWORD MODAL (TELEGRAM OTP VERIFICATION) -->
+    <div id="forgotPasswordModal" class="modal hidden">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="font-size:40px; margin-bottom:6px;">🔐</div>
+            <h3 style="margin-bottom:6px;">استعادة كلمة السر الآمنة</h3>
+            <p style="color:var(--text-gray); font-size:12px; margin-bottom:14px;">سيتم إرسال رمز استعادة فوري لحسابك في تيليجرام</p>
+            
+            <div id="forgotStep1">
+                <input type="text" id="forgotUsernameInput" placeholder="👤 اسم المستخدم المسجل" style="margin-bottom:12px;">
+                <button type="button" onclick="sendPasswordRecoveryCode()" id="sendRecoveryCodeBtn" class="action-btn">
+                    <i class="fab fa-telegram"></i> إرسال رمز الاستعادة إلى تيليجرام
+                </button>
+            </div>
+
+            <div id="forgotStep2" class="hidden" style="margin-top:12px;">
+                <div class="otp-verification-section" style="margin:0 0 14px;">
+                    <div class="otp-title">
+                        <i class="fab fa-telegram-plane"></i>
+                        <span>رمز الاستعادة (6 أرقام)</span>
+                    </div>
+                    <p class="otp-desc">تحقق من رسائل تيليجرام وأدخل الرمز أدناه</p>
+                    <div class="otp-inputs-grid">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp1" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp2" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp3" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp4" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp5" autocomplete="off" inputmode="numeric">
+                        <input type="text" maxlength="1" class="otp-digit-input" id="recOtp6" autocomplete="off" inputmode="numeric">
+                    </div>
+                    <div class="otp-timer-row">
+                        <div class="otp-timer-badge">
+                            <i class="fas fa-clock"></i>
+                            <span id="recOtpTimer">05:00</span>
+                        </div>
+                        <button type="button" class="otp-resend-btn" onclick="sendPasswordRecoveryCode()">
+                            <i class="fas fa-redo-alt"></i> إعادة الإرسال
+                        </button>
+                    </div>
+                </div>
+
+                <input type="password" id="forgotNewPass" placeholder="🔑 كلمة السر الجديدة" style="margin-bottom:10px;">
+                <input type="password" id="forgotConfirmPass" placeholder="🔑 تأكيد كلمة السر الجديدة" style="margin-bottom:14px;">
+
+                <button type="button" onclick="verifyRecoveryCodeAndReset()" id="resetPassSubmitBtn" class="action-btn">
+                    <i class="fas fa-check-circle"></i> تأكيد وحفظ كلمة السر والدخول
+                </button>
+            </div>
+
+            <p id="forgotModalError" style="color:var(--delete-red); font-size:12px; margin-top:10px; min-height:16px; font-weight:bold;"></p>
+            <button onclick="closeModal('forgotPasswordModal')" class="action-btn" style="background:#333; margin-top:8px;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- QR LOGIN MODAL -->
+    <div id="qrLoginModal" class="modal hidden">
+        <div class="modal-content" style="max-width:400px;">
+            <div style="font-size:38px; margin-bottom:6px;">📱</div>
+            <h3 style="margin-bottom:6px;">تسجيل الدخول السريع بـ QR</h3>
+            <p style="color:var(--text-gray); font-size:12px; margin-bottom:12px;">امسح هذا الرمز باستخدام كاميرا هاتفك للدخول الفوري</p>
+            
+            <div id="qrLoginCanvasContainer" style="background:white; padding:16px; border-radius:16px; display:inline-block; margin:8px auto; box-shadow:0 8px 25px rgba(0,0,0,0.5);"></div>
+            
+            <div style="margin-top:14px; background:rgba(0,168,132,0.1); padding:10px; border-radius:10px; border:1px solid rgba(0,168,132,0.3); font-size:12px; color:var(--primary);">
+                <i class="fas fa-sync fa-spin"></i> جلسة تسجيل الدخول نشطة ومشفرة
+            </div>
+
+            <button onclick="simulateQrScanLogin()" class="action-btn" style="margin-top:12px;">
+                <i class="fas fa-camera"></i> محاكاة المسح من الهاتف للدخول الآن
+            </button>
+            <button onclick="closeModal('qrLoginModal')" class="action-btn" style="background:#333; margin-top:8px;">إغلاق</button>
         </div>
     </div>
 
