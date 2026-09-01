@@ -49,11 +49,14 @@ async function hashStringSHA256(str) {
 
 async function getClientPublicIP() {
     try {
-        const response = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 700);
+        const response = await fetch('https://api.ipify.org?format=json', { signal: controller.signal, cache: 'no-store' });
+        clearTimeout(timeoutId);
         const data = await response.json();
         return data.ip || '127.0.0.1';
     } catch(e) {
-        return 'Unknown_IP';
+        return '127.0.0.1';
     }
 }
 
@@ -289,14 +292,25 @@ async function sendTelegramVerificationCode(reason = 'تسجيل الدخول ل
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     pendingVerificationCode = code;
     
-    const clientIp = await getClientPublicIP();
-    const fingerprint = await getDeviceFingerprint();
+    let clientIp = '127.0.0.1';
+    let deviceSummary = 'جهاز مستخدم';
+    try {
+        if (typeof getClientPublicIP === 'function') clientIp = await getClientPublicIP();
+        if (typeof getDeviceFingerprint === 'function') {
+            const fp = await getDeviceFingerprint();
+            if(fp && fp.summary) deviceSummary = fp.summary;
+        }
+    } catch(e) {}
+    
+    const safeReason = (reason || 'تسجيل الدخول').replace(/[<>]/g, '');
+    const safeIp = String(clientIp).replace(/[<>]/g, '');
+    const safeDevice = String(deviceSummary).replace(/[<>]/g, '');
     
     const message = `🔐 <b>رمز تحقق جديد - Chat Secure V6</b>\n\n` +
-                    `🎯 <b>النوع:</b> ${reason}\n` +
+                    `🎯 <b>النوع:</b> ${safeReason}\n` +
                     `🔢 <b>الرمز السري:</b> <code>${code}</code>\n` +
-                    `🌐 <b>عنوان IP:</b> <code>${clientIp}</code>\n` +
-                    `📱 <b>الجهاز:</b> ${fingerprint.summary}\n` +
+                    `🌐 <b>عنوان IP:</b> <code>${safeIp}</code>\n` +
+                    `📱 <b>الجهاز:</b> ${safeDevice}\n` +
                     `⏰ <b>صالح لمدة:</b> 5 دقائق (${new Date().toLocaleTimeString('ar-SA')})\n\n` +
                     `🛡️ لا تشارك هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
                     

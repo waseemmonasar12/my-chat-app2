@@ -15,7 +15,7 @@ if (!firebase.apps.length) {
 const db = firebase.database();
 
 // ==================== TELEGRAM CONFIG ====================
-const TELEGRAM_BOT_TOKEN = "8854005087:AAEN1jTOKXUije6xiDSeNSOXz7FmZRhBzQk";
+const TELEGRAM_BOT_TOKEN = "8713201746:AAGgDAzBmYU4py2dGE2lGPWPvgLqQu3ivn4";
 const TELEGRAM_CHAT_ID = "8607243024";
 
 // ==================== GLOBAL STATE ====================
@@ -88,7 +88,7 @@ async function sendTelegramMessage(text, customToken = null, customChatId = null
         const url = `https://api.telegram.org/bot${token}/sendMessage`;
         console.log(`[Telegram API] Dispatching message to Chat ID: ${chatId} | Token: ${token.substring(0, 10)}...`);
         
-        const response = await fetch(url, {
+        let response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -98,7 +98,23 @@ async function sendTelegramMessage(text, customToken = null, customChatId = null
             })
         });
         
-        const data = await response.json();
+        let data = await response.json();
+        
+        // If HTML entity parsing fails, fallback immediately to plain text
+        if (!data.ok && data.description && data.description.includes("can't parse entities")) {
+            console.warn('[Telegram API] Retrying with plain text fallback...');
+            const plainText = text.replace(/<[^>]*>/g, '');
+            response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: plainText
+                })
+            });
+            data = await response.json();
+        }
+        
         console.log('[Telegram API] Response Status:', data);
         
         if (!data.ok) {
@@ -129,21 +145,26 @@ async function sendTelegramVerificationCode(reason = 'تسجيل الدخول ل
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     pendingVerificationCode = code;
     
-    let clientIp = 'Unknown_IP';
-    let deviceSummary = 'هاتف ذكي / جهاز مستخدم';
+    let clientIp = '127.0.0.1';
+    let deviceSummary = 'جهاز مستخدم';
     try {
         if (typeof getClientPublicIP === 'function') clientIp = await getClientPublicIP();
         if (typeof getDeviceFingerprint === 'function') {
             const fp = await getDeviceFingerprint();
-            deviceSummary = fp.summary;
+            if(fp && fp.summary) deviceSummary = fp.summary;
         }
     } catch(e) {}
 
+    // Safe sanitized message with clean HTML
+    const safeReason = (reason || 'تسجيل الدخول').replace(/[<>]/g, '');
+    const safeIp = String(clientIp).replace(/[<>]/g, '');
+    const safeDevice = String(deviceSummary).replace(/[<>]/g, '');
+
     const message = `🔐 <b>رمز تحقق جديد - Chat Secure V6</b>\n\n` +
-                    `🎯 <b>النوع:</b> ${reason}\n` +
+                    `🎯 <b>النوع:</b> ${safeReason}\n` +
                     `🔢 <b>الرمز السري:</b> <code>${code}</code>\n` +
-                    `🌐 <b>عنوان IP:</b> <code>${clientIp}</code>\n` +
-                    `📱 <b>الجهاز:</b> ${deviceSummary}\n` +
+                    `🌐 <b>عنوان IP:</b> <code>${safeIp}</code>\n` +
+                    `📱 <b>الجهاز:</b> ${safeDevice}\n` +
                     `⏰ <b>صالح لمدة:</b> 5 دقائق (${new Date().toLocaleTimeString('ar-SA')})\n\n` +
                     `🛡️ لا تشارك هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
                     
