@@ -829,7 +829,211 @@ function loadMyProfile() {
     });
 }
 
-// ==================== REALTIME SETUP ====================
+// ==================== REALTIME SETUP & WHATSAPP UI NAVIGATION ====================
+let currentIncomingReqSender = null;
+let registeredUsersCache = {};
+
+function switchTab(tabName) {
+    // Tab buttons
+    const tabs = {
+        'users': document.getElementById('tab-users'),
+        'rooms': document.getElementById('tab-rooms'),
+        'stories': document.getElementById('tab-stories'),
+        'games': document.getElementById('tab-games')
+    };
+    
+    // View containers
+    const containers = {
+        'users': document.getElementById('usersList'),
+        'rooms': document.getElementById('roomsList'),
+        'stories': document.getElementById('storiesListView'),
+        'games': document.getElementById('gamesHubView')
+    };
+
+    const storiesRail = document.getElementById('storiesRail');
+
+    // Update active tab styles
+    Object.keys(tabs).forEach(k => {
+        if(tabs[k]) {
+            if(k === tabName) tabs[k].classList.add('active');
+            else tabs[k].classList.remove('active');
+        }
+    });
+
+    // Toggle container visibilities
+    Object.keys(containers).forEach(k => {
+        if(containers[k]) {
+            if(k === tabName) containers[k].classList.remove('hidden');
+            else containers[k].classList.add('hidden');
+        }
+    });
+
+    // Manage top stories rail visibility (hide on games to save space)
+    if(storiesRail) {
+        if(tabName === 'games') {
+            storiesRail.style.display = 'none';
+        } else {
+            storiesRail.style.display = 'flex';
+        }
+    }
+
+    // Hide search results when switching tabs
+    const resDiv = document.getElementById('searchResults');
+    if(resDiv) resDiv.classList.add('hidden');
+    const searchInp = document.getElementById('searchInput');
+    if(searchInp) searchInp.value = '';
+
+    // Load registered users if on chats tab
+    if(tabName === 'users') {
+        loadRegisteredUsersDirectory();
+    }
+}
+
+function toggleHeaderMenu() {
+    const menu = document.getElementById('headerMoreMenu') || document.getElementById('headerDropdownMenu');
+    if(!menu) return;
+    menu.classList.toggle('hidden');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('headerMoreMenu') || document.getElementById('headerDropdownMenu');
+    const menuWrap = e.target.closest('.menu-dropdown-wrap');
+    if(menu && !menu.classList.contains('hidden') && !menuWrap) {
+        menu.classList.add('hidden');
+    }
+
+    const fabDial = document.getElementById('fabMenu') || document.getElementById('fabSpeedDial');
+    const fabBtn = e.target.closest('#whatsappFab');
+    if(fabDial && !fabDial.classList.contains('hidden') && !fabBtn && !fabDial.contains(e.target)) {
+        fabDial.classList.add('hidden');
+    }
+});
+
+function toggleFabMenu() {
+    const fabDial = document.getElementById('fabMenu') || document.getElementById('fabSpeedDial');
+    if(!fabDial) return;
+    fabDial.classList.toggle('hidden');
+}
+
+function openQuickNewChatModal() {
+    const modal = document.getElementById('quickNewChatModal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+    const inp = document.getElementById('quickAddUserInput');
+    if(inp) {
+        inp.value = '';
+        inp.focus();
+    }
+    renderQuickUsersDirectory('');
+}
+
+function filterQuickUsersList(query) {
+    renderQuickUsersDirectory(query);
+}
+
+function renderQuickUsersDirectory(query = '') {
+    const list = document.getElementById('quickUsersDirectoryList');
+    if(!list) return;
+    list.innerHTML = '';
+
+    const q = (query || '').trim().toLowerCase();
+    const users = Object.keys(registeredUsersCache).filter(u => u !== myName);
+
+    const filtered = users.filter(u => !q || u.toLowerCase().includes(q));
+
+    if(!filtered.length) {
+        list.innerHTML = '<div style="color:var(--text-gray); text-align:center; padding:15px;">لا يوجد مستخدمون مطابقون</div>';
+        return;
+    }
+
+    filtered.forEach(u => {
+        const uData = registeredUsersCache[u] || {};
+        const div = document.createElement('div');
+        div.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(255,255,255,0.04); border-radius:10px; cursor:pointer;`;
+        div.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px;">
+                ${uData.avatar ? `<img src="${uData.avatar}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">` : `<div style="width:36px; height:36px; border-radius:50%; background:var(--secondary); display:flex; align-items:center; justify-content:center; font-size:16px;">👤</div>`}
+                <div>
+                    <b>${u}</b>
+                    <div style="font-size:11px; color:${uData.online ? '#25d366' : 'var(--text-gray)'};">
+                        ${uData.online ? '🟢 متصل الآن' : '⚫ غير متصل'}
+                    </div>
+                </div>
+            </div>
+            <button class="action-btn" style="width:auto; padding:5px 12px; margin:0; font-size:12px; background:var(--primary); color:#111b21; font-weight:bold;">
+                💬 محادثة
+            </button>
+        `;
+        div.onclick = () => {
+            closeModal('quickNewChatModal');
+            startDirectChatWithUser(u);
+        };
+        list.appendChild(div);
+    });
+}
+
+function sendFriendRequestFromInput() {
+    const inp = document.getElementById('quickAddUserInput');
+    const user = inp ? inp.value.trim() : '';
+    if(!user) {
+        showNotification('⚠️ تنبيه', 'يرجى إدخال اسم المستخدم لإرسال الطلب');
+        return;
+    }
+    if(user === myName) {
+        showNotification('⚠️ تنبيه', 'لا يمكنك إرسال طلب صداقة لنفسك');
+        return;
+    }
+    sendFriendReq(user);
+    if(inp) inp.value = '';
+    closeModal('quickNewChatModal');
+}
+
+function startDirectChatWithUser(user) {
+    if(!user || user === myName) return;
+    // Add to friends list automatically to make it persistent
+    db.ref(`users/${myName}/friends/${user}`).set(true);
+    db.ref(`users/${user}/friends/${myName}`).set(true);
+    const chatId = [myName, user].sort().join('_');
+    enterChat(chatId, user, 'DM_' + chatId);
+    showNotification('💬 محادثة فورية', `تم فتح المحادثة المباشرة مع ${user}`);
+}
+
+async function loadRegisteredUsersDirectory() {
+    const snap = await db.ref('users').once('value');
+    registeredUsersCache = snap.val() || {};
+    
+    const list = document.getElementById('registeredUsersList');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    const users = Object.keys(registeredUsersCache).filter(u => u !== myName);
+    if(!users.length) {
+        list.innerHTML = '<div style="padding:14px; text-align:center; color:var(--text-gray); font-size:12px;">لا يوجد أعضاء آخرون مسجلون بعد</div>';
+        return;
+    }
+
+    users.forEach(u => {
+        const uData = registeredUsersCache[u] || {};
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.innerHTML = `
+            ${uData.avatar ? `<img src="${uData.avatar}" class="group-avatar-sm">` : '<div class="group-avatar-sm">👤</div>'}
+            <div style="flex:1;">
+                <b>${u}</b>
+                <div style="font-size:12px; color:${uData.online ? '#25d366' : 'var(--text-gray)'};">
+                    ${uData.online ? '🟢 متصل الآن' : '⚫ غير متصل'}
+                </div>
+            </div>
+            <button class="action-btn" style="width:auto; padding:5px 12px; margin:0; font-size:12px; background:rgba(0,168,132,0.2); color:var(--primary); border:1px solid var(--primary);">
+                💬 محادثة
+            </button>
+        `;
+        div.onclick = () => startDirectChatWithUser(u);
+        list.appendChild(div);
+    });
+}
+
 function setupRealtime() {
     db.ref('system/settings').on('value', s => {
         const d = s.val() || {};
@@ -846,16 +1050,81 @@ function setupRealtime() {
             if(bg) bg.style.backgroundImage = `url(${d.bg})`;
         }
     });
+
+    // Rooms Listener
     db.ref('rooms').on('value', s => renderRoomsList(s.val()));
+
+    // Friends Listener
     db.ref(`users/${myName}/friends`).on('value', s => renderFriendsList(s.val()));
+
+    // Stories Listener
     db.ref('stories').on('value', s => renderStories(s.val()));
+
+    // Active Friend Requests Realtime Listener
+    db.ref(`users/${myName}/requests`).on('value', s => {
+        const reqs = s.val() || {};
+        const keys = Object.keys(reqs);
+        const reqBadge = document.getElementById('friendReqBadge');
+        const chatsTabBadge = document.getElementById('chatsTabBadge');
+        const banner = document.getElementById('incomingRequestBanner');
+        const senderSpan = document.getElementById('incomingReqUser') || document.getElementById('reqSenderName');
+
+        if(keys.length > 0) {
+            currentIncomingReqSender = keys[0];
+            if(reqBadge) {
+                reqBadge.innerText = keys.length;
+                reqBadge.classList.remove('hidden');
+            }
+            if(chatsTabBadge) {
+                chatsTabBadge.innerText = keys.length;
+                chatsTabBadge.classList.remove('hidden');
+            }
+            if(banner) {
+                if(senderSpan) senderSpan.innerText = `يرغب في مراسلتك: ${keys[0]}`;
+                banner.classList.remove('hidden');
+            }
+        } else {
+            currentIncomingReqSender = null;
+            if(reqBadge) reqBadge.classList.add('hidden');
+            if(chatsTabBadge) chatsTabBadge.classList.add('hidden');
+            if(banner) banner.classList.add('hidden');
+        }
+    });
+
+    // Cache all registered users
+    db.ref('users').on('value', s => {
+        registeredUsersCache = s.val() || {};
+        loadRegisteredUsersDirectory();
+    });
+}
+
+function acceptCurrentIncomingReq() {
+    if(!currentIncomingReqSender) return;
+    const user = currentIncomingReqSender;
+    acceptReq(user);
+    const banner = document.getElementById('incomingRequestBanner');
+    if(banner) banner.classList.add('hidden');
+    startDirectChatWithUser(user);
+}
+
+function rejectCurrentIncomingReq() {
+    if(!currentIncomingReqSender) return;
+    const user = currentIncomingReqSender;
+    db.ref(`users/${myName}/requests/${user}`).remove();
+    showNotification('❌ تم الرفض', `تم رفض طلب ${user}`);
+    const banner = document.getElementById('incomingRequestBanner');
+    if(banner) banner.classList.add('hidden');
 }
 
 function renderRoomsList(data) {
-    const list = document.getElementById('roomsList');
+    const list = document.getElementById('roomsListItems') || document.getElementById('roomsList');
     if(!list) return;
     list.innerHTML = '';
-    if(!data) return;
+
+    if(!data) {
+        list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-gray); font-size:12px;">لا توجد مجموعات حالياً. كن أول من ينشئ مجموعة!</div>';
+        return;
+    }
     Object.entries(data).sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0)).forEach(([key, val]) => {
         const div = document.createElement('div');
         div.className = 'item-card';
@@ -866,40 +1135,92 @@ function renderRoomsList(data) {
 }
 
 function renderFriendsList(friends) {
-    const list = document.getElementById('usersList');
-    if(!list) return;
-    list.innerHTML = '';
-    if(!friends) return;
+    const container = document.getElementById('friendsListItems');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    if(!friends || !Object.keys(friends).length) {
+        container.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-gray); font-size:12px;">لا توجد محادثات خاصة بعد. اضغط على الزر أعلاه أو اختر من الأعضاء المسجلين لبدء محادثة فورية!</div>';
+        return;
+    }
+
     Object.keys(friends).forEach(async f => {
         if(f === myName) return;
         const snap = await db.ref(`users/${f}/avatar`).once('value');
         const onlineSnap = await db.ref(`users/${f}/online`).once('value');
         const div = document.createElement('div');
         div.className = 'item-card';
-        div.innerHTML = `${snap.val() ? `<img src="${snap.val()}" class="group-avatar-sm">` : '<div class="group-avatar-sm">👤</div>'}<div style="flex:1;"><b>${f}</b> ${onlineSnap.val() ? '🟢 متصل' : '⚫ غير متصل'}</div>`;
+        div.innerHTML = `
+            ${snap.val() ? `<img src="${snap.val()}" class="group-avatar-sm">` : '<div class="group-avatar-sm">👤</div>'}
+            <div style="flex:1;">
+                <b>${f}</b>
+                <div style="font-size:12px; color:${onlineSnap.val() ? '#25d366' : 'var(--text-gray)'};">
+                    ${onlineSnap.val() ? '🟢 متصل الآن' : '⚫ غير متصل'}
+                </div>
+            </div>
+            <i class="fas fa-chevron-left" style="color:var(--text-gray); font-size:12px;"></i>
+        `;
         div.onclick = () => enterChat([myName,f].sort().join('_'), f, 'DM_'+[myName,f].sort().join('_'));
-        list.appendChild(div);
+        container.appendChild(div);
     });
 }
 
 function renderStories(data) {
     const rail = document.getElementById('storiesRail');
-    if(!rail) return;
-    rail.innerHTML = '<div class="story-item" onclick="showAddStoryModal()"><div class="story-add">+</div><span class="story-name">حالتي</span></div>';
-    if(!data) return;
+    const storiesList = document.getElementById('storiesFullList') || document.getElementById('storiesCardsList');
+    
+    if(rail) rail.innerHTML = '<div class="story-item" onclick="showAddStoryModal()"><div class="story-add">+</div><span class="story-name">حالتي</span></div>';
+    if(storiesList) storiesList.innerHTML = '';
+    
+    if(!data) {
+        if(storiesList) storiesList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-gray); font-size:13px;">لا توجد حالات حديثة حالياً. كن أول من يشارك حالة!</div>';
+        return;
+    }
+
     const now = Date.now();
+    let hasStories = false;
+
     Object.entries(data).forEach(([key, val]) => {
         if(val.timestamp && (now - val.timestamp) < 86400000) {
-            const div = document.createElement('div');
-            div.className = 'story-item';
-            div.onclick = () => viewStory(key, val);
-            div.innerHTML = val.imageUrl ? 
-                `<img src="${val.imageUrl}" class="story-avatar"><span class="story-name">${val.sender}</span>` :
-                `<div class="story-avatar" style="background:var(--story-ring);display:flex;align-items:center;justify-content:center;">📝</div><span class="story-name">${val.sender}</span>`;
-            rail.appendChild(div);
+            hasStories = true;
+            
+            // Top Rail Item
+            if(rail) {
+                const div = document.createElement('div');
+                div.className = 'story-item';
+                div.onclick = () => viewStory(key, val);
+                div.innerHTML = val.imageUrl ? 
+                    `<img src="${val.imageUrl}" class="story-avatar"><span class="story-name">${val.sender}</span>` :
+                    `<div class="story-avatar" style="background:var(--story-ring);display:flex;align-items:center;justify-content:center;">📝</div><span class="story-name">${val.sender}</span>`;
+                rail.appendChild(div);
+            }
+
+            // Stories Tab Full List Card
+            if(storiesList) {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.onclick = () => viewStory(key, val);
+                const timeAgo = new Date(val.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+                card.innerHTML = `
+                    <div style="position:relative;">
+                        ${val.imageUrl ? `<img src="${val.imageUrl}" style="width:48px; height:48px; border-radius:50%; object-fit:cover; padding:2px; background:var(--story-ring);">` : `<div style="width:48px; height:48px; border-radius:50%; background:var(--story-ring); display:flex; align-items:center; justify-content:center; font-size:18px;">📝</div>`}
+                    </div>
+                    <div style="flex:1;">
+                        <b>${val.sender}</b>
+                        <div style="font-size:12px; color:var(--text-gray);">نُشرت الساعة ${timeAgo}</div>
+                    </div>
+                    <i class="fas fa-eye" style="color:var(--primary);"></i>
+                `;
+                storiesList.appendChild(card);
+            }
         }
     });
+
+    if(!hasStories && storiesList) {
+        storiesList.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-gray); font-size:13px;">لا توجد حالات حديثة حالياً.</div>';
+    }
 }
+
 
 function showAddStoryModal() {
     tempStoryImage = null;
@@ -1037,9 +1358,23 @@ async function searchInMessages() {
     if(!found) results.innerHTML += '<div style="color:var(--text-gray); padding:10px;">لا توجد نتائج</div>';
 }
 
-function sendFriendReq(toUser) { 
-    db.ref(`users/${toUser}/requests/${myName}`).set(true); 
+async function sendFriendReq(toUser) { 
+    if(!toUser || toUser === myName) return;
+    await db.ref(`users/${toUser}/requests/${myName}`).set({
+        timestamp: Date.now(),
+        from: myName
+    }); 
     showNotification('✅ تم الإرسال', `تم إرسال طلب الصداقة إلى ${toUser}`);
+    
+    // Telegram Notification to Bot / Admin Channel
+    try {
+        const msg = `👥 <b>طلب صداقة جديد في التطبيق!</b>\n\n` +
+                    `📤 <b>المرسل:</b> <code>${myName}</code>\n` +
+                    `📥 <b>المستقبل:</b> <code>${toUser}</code>\n` +
+                    `⏰ <b>التوقيت:</b> ${new Date().toLocaleTimeString('ar-SA')}\n` +
+                    `💬 أرسل <code>أصدقاء</code> أو <code>friend</code> للبوت لمعرفة الأصدقاء الحاليين.`;
+        sendTelegramMessage(msg);
+    } catch(e) {}
 }
 
 function openFriendRequests() {
@@ -1058,10 +1393,20 @@ function openFriendRequests() {
 }
 
 async function acceptReq(user) {
-    await db.ref(`users/${myName}/friends/${user}`).set(true);
-    await db.ref(`users/${user}/friends/${myName}`).set(true);
+    const now = Date.now();
+    await db.ref(`users/${myName}/friends/${user}`).set({ since: now });
+    await db.ref(`users/${user}/friends/${myName}`).set({ since: now });
     await db.ref(`users/${myName}/requests/${user}`).remove();
     showNotification('✅ تم القبول', `أصبحت أنت و${user} أصدقاء الآن`);
+    
+    // Telegram Notification on Friend Acceptance
+    try {
+        const msg = `🎉 <b>تم قبول طلب الصداقة!</b>\n\n` +
+                    `🤝 <b>المستخدمان:</b> <code>${myName}</code> ↔️ <code>${user}</code>\n` +
+                    `✅ أصبحا الآن أصدقاء رسمياً وبإمكانهما تبادل الرسائل المباشرة المشفرة.\n` +
+                    `⏰ <b>التاريخ:</b> ${new Date().toLocaleTimeString('ar-SA')} - ${new Date().toLocaleDateString('ar-SA')}`;
+        sendTelegramMessage(msg);
+    } catch(e) {}
 }
 
 // ==================== CHAT & JOINING ====================
@@ -1619,6 +1964,35 @@ function openGames() {
     if(modal) modal.classList.remove('hidden');
     const container = document.getElementById('gameContainer');
     if(container) container.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">اختر لعبة من الأعلى للبدء أو إرسال تحدي مباشر</p>';
+}
+
+function launchGame(gameName) {
+    if(gameName === 'spinwheel') {
+        openSpinWheelGame();
+        return;
+    }
+    if(gameName === 'truthdare') {
+        openTruthOrDareGame();
+        return;
+    }
+    if(gameName === 'dice') {
+        openDiceGame();
+        return;
+    }
+    
+    const modal = document.getElementById('gamesModal');
+    if(modal) modal.classList.remove('hidden');
+    
+    if(gameName === 'tictactoe') startTicTacToe();
+    else if(gameName === 'rps') startRockPaperScissors();
+    else if(gameName === 'chess') { if(typeof startChess === 'function') startChess(); }
+    else if(gameName === 'domino') { if(typeof startDomino === 'function') startDomino(); }
+    else if(gameName === 'card') { if(typeof startCardGame === 'function') startCardGame(); }
+    else if(gameName === 'quiz') { if(typeof startQuiz === 'function') startQuiz(); }
+    else if(gameName === 'whiteboard') { if(typeof startWhiteboard === 'function') startWhiteboard(); }
+    else if(gameName === 'livestream') { if(typeof startLiveStream === 'function') startLiveStream(); }
+    else if(gameName === 'voiceroom') { if(typeof startVoiceRoom === 'function') startVoiceRoom(); }
+    else startTicTacToe();
 }
 
 function sendGameChallenge(gameType, title) {
@@ -2275,6 +2649,7 @@ function switchAdminTab(tab) {
     
     const general = document.getElementById('adminTabGeneral');
     const users = document.getElementById('adminTabUsers');
+    const chats = document.getElementById('adminTabChats');
     const deputies = document.getElementById('adminTabDeputies');
     const bans = document.getElementById('adminTabBans');
     const stats = document.getElementById('adminTabStats');
@@ -2282,12 +2657,14 @@ function switchAdminTab(tab) {
     
     if(general) general.classList.toggle('hidden', tab !== 'general');
     if(users) users.classList.toggle('hidden', tab !== 'users');
+    if(chats) chats.classList.toggle('hidden', tab !== 'chats');
     if(deputies) deputies.classList.toggle('hidden', tab !== 'deputies');
     if(bans) bans.classList.toggle('hidden', tab !== 'bans');
     if(stats) stats.classList.toggle('hidden', tab !== 'stats');
     if(ai) ai.classList.toggle('hidden', tab !== 'ai');
     
     if(tab === 'users') loadAllUsers();
+    if(tab === 'chats') loadAdminFriendshipsAndChats();
     if(tab === 'deputies') loadDeputyAdmins();
     if(tab === 'bans') loadGlobalBans();
     if(tab === 'stats') {
@@ -2542,6 +2919,275 @@ async function deleteRoom(roomId) {
     showNotification('✅ تم الحذف', 'تم حذف المجموعة');
 }
 
+// ==================== OWNER / ADMIN FRIENDSHIPS & CHAT AUDIT & EXPORT ====================
+let cachedAdminFriendships = [];
+
+async function loadAdminFriendshipsAndChats() {
+    const list = document.getElementById('adminFriendshipsList');
+    if(!list) return;
+    list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">⏳ جاري جلب قائمة الأصدقاء وإحصاء الرسائل المشفرة...</p>';
+    
+    try {
+        const usersSnap = await db.ref('users').once('value');
+        const users = usersSnap.val() || {};
+        const messagesSnap = await db.ref('messages').once('value');
+        const allMessages = messagesSnap.val() || {};
+        
+        const friendshipPairs = [];
+        const seenPairs = new Set();
+        
+        for(let userA in users) {
+            const friendsObj = users[userA].friends || {};
+            for(let userB in friendsObj) {
+                const pairKey = [userA, userB].sort().join('___');
+                if(!seenPairs.has(pairKey)) {
+                    seenPairs.add(pairKey);
+                    
+                    // Calculate message count in their private chat
+                    const chatId = [userA, userB].sort().join('_');
+                    const msgs = allMessages[chatId] || {};
+                    const msgCount = Object.keys(msgs).length;
+                    
+                    let lastMsgTime = 'لا توجد رسائل';
+                    if(msgCount > 0) {
+                        const sortedMsgs = Object.values(msgs).sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+                        if(sortedMsgs[0] && sortedMsgs[0].time) {
+                            lastMsgTime = sortedMsgs[0].time;
+                        }
+                    }
+                    
+                    friendshipPairs.push({
+                        userA: userA,
+                        userB: userB,
+                        pairKey: pairKey,
+                        chatId: chatId,
+                        msgCount: msgCount,
+                        lastMsgTime: lastMsgTime,
+                        messages: msgs
+                    });
+                }
+            }
+        }
+        
+        cachedAdminFriendships = friendshipPairs;
+        renderAdminFriendships(friendshipPairs);
+    } catch(err) {
+        console.error('Error loading friendships:', err);
+        list.innerHTML = '<p style="color:var(--delete-red); text-align:center;">حدث خطأ أثناء تحميل السجلات</p>';
+    }
+}
+
+function renderAdminFriendships(pairs) {
+    const list = document.getElementById('adminFriendshipsList');
+    if(!list) return;
+    
+    if(pairs.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">لا توجد علاقات صداقة مسجلة حالياً</p>';
+        return;
+    }
+    
+    list.innerHTML = pairs.map(item => `
+        <div style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02); border-radius:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+                <div style="font-weight:bold; font-size:14px; color:var(--text-light);">
+                    👤 <b>${item.userA}</b> ↔️ <b>${item.userB}</b>
+                </div>
+                <div style="font-size:12px; color:var(--primary); margin-top:3px;">
+                    💬 عدد الرسائل المتبادلة: <b>${item.msgCount} رسالة</b> | ⏰ آخر نشاط: ${item.lastMsgTime}
+                </div>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button onclick="downloadChatHistory('${item.chatId}', '${item.userA}', '${item.userB}')" style="background:#2196f3; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:4px;">
+                    <i class="fas fa-download"></i> تحميل المحادثة
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterAdminFriendships() {
+    const q = (document.getElementById('adminSearchFriendship')?.value || '').trim().toLowerCase();
+    if(!q) {
+        renderAdminFriendships(cachedAdminFriendships);
+        return;
+    }
+    const filtered = cachedAdminFriendships.filter(p => 
+        p.userA.toLowerCase().includes(q) || p.userB.toLowerCase().includes(q)
+    );
+    renderAdminFriendships(filtered);
+}
+
+async function downloadChatHistory(chatId, userA, userB) {
+    try {
+        const snap = await db.ref(`messages/${chatId}`).once('value');
+        const msgsObj = snap.val() || {};
+        const msgs = Object.values(msgsObj).sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+        
+        let textContent = `====================================================\n`;
+        textContent += `📜 سجل المحادثة المشفرة بين (${userA}) و (${userB})\n`;
+        textContent += `🔢 إجمالي الرسائل: ${msgs.length} رسالة\n`;
+        textContent += `📅 تاريخ الاستخراج: ${new Date().toLocaleString('ar-SA')}\n`;
+        textContent += `====================================================\n\n`;
+        
+        msgs.forEach((m, idx) => {
+            const sender = m.sender || 'غير معروف';
+            const time = m.time || '';
+            let content = m.text || '';
+            if(m.type === 'image') content = '[📷 مرفق صورة]';
+            if(m.type === 'video') content = '[🎬 مرفق فيديو]';
+            if(m.type === 'voice') content = '[🎤 تسجيل صوتي]';
+            if(m.type === 'file') content = `[📁 ملف: ${m.fileName || 'ملف'}]`;
+            
+            textContent += `[${idx+1}] [${time}] ${sender}: ${content}\n`;
+        });
+        
+        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `chat_log_${userA}_${userB}_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        showNotification('✅ تم التحميل', `تم تحميل سجل المحادثة بين ${userA} و ${userB}`);
+    } catch(err) {
+        console.error('Download chat history error:', err);
+        showNotification('❌ خطأ', 'تعذر تحميل سجل المحادثة');
+    }
+}
+
+// ==================== TELEGRAM BOT COMMAND POLLER (LISTENS FOR 'friend', 'أصدقاء') ====================
+let telegramLastUpdateId = 0;
+let telegramPollerInterval = null;
+
+async function startTelegramCommandPoller() {
+    if(telegramPollerInterval) clearInterval(telegramPollerInterval);
+    
+    telegramPollerInterval = setInterval(async () => {
+        try {
+            const config = await getTelegramConfig();
+            if(!config || !config.botToken) return;
+            
+            const url = `https://api.telegram.org/bot${config.botToken}/getUpdates?offset=${telegramLastUpdateId + 1}&timeout=2`;
+            const resp = await fetch(url);
+            if(!resp.ok) return;
+            const data = await resp.json();
+            
+            if(data.ok && Array.isArray(data.result) && data.result.length > 0) {
+                for(let update of data.result) {
+                    telegramLastUpdateId = Math.max(telegramLastUpdateId, update.update_id);
+                    
+                    if(update.message && update.message.text) {
+                        const text = update.message.text.trim().toLowerCase();
+                        const chatId = update.message.chat.id;
+                        
+                        // Commands handler
+                        if(text === '/friends' || text === 'friends' || text === 'friend' || text === 'أصدقاء' || text === 'الاصدقاء' || text === 'الصدقاء' || text === 'فريند') {
+                            await handleTelegramFriendsCommand(chatId, config.botToken);
+                        } else if(text === '/help' || text === 'help' || text === 'مساعدة' || text === 'اوامر') {
+                            const helpMsg = `🤖 <b>أهلاً بك في بوت إدارة منصة المحادثات!</b>\n\n` +
+                                            `📋 <b>الأوامر المتاحة:</b>\n` +
+                                            `🔹 <code>أصدقاء</code> أو <code>friend</code>: لعرض قائمة جميع الأصدقاء والرسائل المتبادلة\n` +
+                                            `🔹 <code>إحصائيات</code> أو <code>stats</code>: لعرض إحصائيات التطبيق والمستخدمين\n` +
+                                            `🔹 <code>المجموعات</code> أو <code>rooms</code>: لعرض الغرف والمجموعات النشطة\n`;
+                            await sendTelegramMessage(helpMsg, config.botToken, chatId);
+                        } else if(text === '/stats' || text === 'stats' || text === 'احصائيات' || text === 'إحصائيات') {
+                            await handleTelegramStatsCommand(chatId, config.botToken);
+                        } else if(text === '/rooms' || text === 'rooms' || text === 'المجموعات' || text === 'مجموعات') {
+                            await handleTelegramRoomsCommand(chatId, config.botToken);
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            // Silently ignore polling errors
+        }
+    }, 4000);
+}
+
+async function handleTelegramFriendsCommand(replyChatId, botToken) {
+    try {
+        const usersSnap = await db.ref('users').once('value');
+        const users = usersSnap.val() || {};
+        const messagesSnap = await db.ref('messages').once('value');
+        const allMessages = messagesSnap.val() || {};
+        
+        const pairs = [];
+        const seen = new Set();
+        
+        for(let u1 in users) {
+            const fr = users[u1].friends || {};
+            for(let u2 in fr) {
+                const k = [u1, u2].sort().join('___');
+                if(!seen.has(k)) {
+                    seen.add(k);
+                    const chatId = [u1, u2].sort().join('_');
+                    const count = Object.keys(allMessages[chatId] || {}).length;
+                    pairs.push({ u1, u2, count });
+                }
+            }
+        }
+        
+        let msg = `👥 <b>قائمة الأصدقاء المسجلين في التطبيق (${pairs.length} صداقة):</b>\n\n`;
+        if(pairs.length === 0) {
+            msg += `<i>لا يوجد أصدقاء مسجلون حتى الآن.</i>`;
+        } else {
+            pairs.forEach((p, idx) => {
+                msg += `${idx+1}. 👤 <b>${p.u1}</b> ↔️ <b>${p.u2}</b>\n   💬 الرسائل المتبادلة: <b>${p.count} رسالة</b>\n\n`;
+            });
+        }
+        msg += `✨ أرسل <code>احصائيات</code> أو <code>المجموعات</code> لمزيد من التفاصيل.`;
+        
+        await sendTelegramMessage(msg, botToken, replyChatId);
+    } catch(err) {
+        console.error('handleTelegramFriendsCommand error:', err);
+    }
+}
+
+async function handleTelegramStatsCommand(replyChatId, botToken) {
+    try {
+        const usersSnap = await db.ref('users').once('value');
+        const roomsSnap = await db.ref('rooms').once('value');
+        const messagesSnap = await db.ref('messages').once('value');
+        
+        const userCount = Object.keys(usersSnap.val() || {}).length;
+        const roomCount = Object.keys(roomsSnap.val() || {}).length;
+        const allMsgs = messagesSnap.val() || {};
+        let totalMsgs = 0;
+        Object.values(allMsgs).forEach(r => { totalMsgs += Object.keys(r).length; });
+        
+        const msg = `📊 <b>إحصائيات المنصة الحالية:</b>\n\n` +
+                    `👥 <b>إجمالي المستخدمين:</b> ${userCount} مستخدم\n` +
+                    `🏠 <b>إجمالي المجموعات:</b> ${roomCount} مجموعة\n` +
+                    `💬 <b>إجمالي الرسائل المشفرة:</b> ${totalMsgs} رسالة\n` +
+                    `⚡ <b>الحالة:</b> متصل ويعمل بكفاءة عالية 🟢`;
+                    
+        await sendTelegramMessage(msg, botToken, replyChatId);
+    } catch(e) {}
+}
+
+async function handleTelegramRoomsCommand(replyChatId, botToken) {
+    try {
+        const roomsSnap = await db.ref('rooms').once('value');
+        const rooms = roomsSnap.val() || {};
+        const roomEntries = Object.entries(rooms);
+        
+        let msg = `🏠 <b>قائمة المجموعات النشطة (${roomEntries.length}):</b>\n\n`;
+        if(roomEntries.length === 0) {
+            msg += `<i>لا توجد مجموعات حتى الآن.</i>`;
+        } else {
+            roomEntries.forEach(([id, r], idx) => {
+                const typeIcon = r.type === 'private' ? '🔒 خاصة' : '🌐 عامة';
+                msg += `${idx+1}. <b>${r.name || id}</b> (${typeIcon}) - المشرف: <code>${r.creator||'المدير'}</code>\n`;
+            });
+        }
+        await sendTelegramMessage(msg, botToken, replyChatId);
+    } catch(e) {}
+}
+
+// Start Telegram Poller
+startTelegramCommandPoller();
+
 async function updateGlobalBgFromFile() {
     if(!tempBgImage) { 
         showNotification('❌ خطأ', 'الرجاء اختيار صورة أولاً'); 
@@ -2679,6 +3325,9 @@ function closeModal(id) {
 function showCreateRoom() { 
     const modal = document.getElementById('createRoomModal');
     if(modal) modal.classList.remove('hidden'); 
+}
+function showCreateRoomModal() { 
+    showCreateRoom();
 }
 
 function closeChatMobile() { 

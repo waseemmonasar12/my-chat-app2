@@ -920,6 +920,416 @@ function initSmartNightMode() {
     setInterval(checkTime, 60000);
 }
 
+// ==================== 11. LUCKY SPIN WHEEL & RANDOM NAME PICKER ====================
+let wheelParticipants = ['أحمد', 'محمد', 'سارة', 'خالد', 'فاطمة', 'عمر', 'نورة', 'علي'];
+let wheelColors = ['#00a884', '#ffd700', '#3498db', '#e74c3c', '#9b59b6', '#e67e22', '#1abc9c', '#f39c12'];
+let currentWheelRotation = 0;
+let isSpinningWheel = false;
+let lastWheelWinner = '';
+
+function openSpinWheelGame() {
+    const modal = document.getElementById('spinWheelModal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+    
+    // Default to room/group members or online users if available
+    setWheelSource('room');
+}
+
+function setWheelSource(source) {
+    const tabRoom = document.getElementById('tabWheelRoom');
+    const tabCustom = document.getElementById('tabWheelCustom');
+    const customWrap = document.getElementById('wheelCustomInputWrap');
+
+    if(source === 'room') {
+        if(tabRoom) tabRoom.classList.add('active');
+        if(tabCustom) tabCustom.classList.remove('active');
+        if(customWrap) customWrap.classList.add('hidden');
+
+        // Fetch participants from current room or registered users
+        const users = Object.keys(registeredUsersCache || {});
+        if(users.length > 1) {
+            wheelParticipants = users.slice(0, 12);
+        } else {
+            wheelParticipants = [myName || 'أنا', 'صديق 1', 'صديق 2', 'صديق 3', 'صديق 4'];
+        }
+        drawLuckyWheel();
+    } else {
+        if(tabRoom) tabRoom.classList.remove('active');
+        if(tabCustom) tabCustom.classList.add('active');
+        if(customWrap) customWrap.classList.remove('hidden');
+    }
+}
+
+function loadCustomNamesToWheel() {
+    const inp = document.getElementById('customNamesInput');
+    const raw = inp ? inp.value.trim() : '';
+    if(!raw) {
+        showNotification('⚠️ تنبيه', 'يرجى إدخال أسماء مفصولة بفواصل');
+        return;
+    }
+    const names = raw.split(/[,،\n]+/).map(n => n.trim()).filter(n => n.length > 0);
+    if(names.length < 2) {
+        showNotification('⚠️ تنبيه', 'يرجى إدخال اسمين على الأقل للقرعة');
+        return;
+    }
+    wheelParticipants = names;
+    drawLuckyWheel();
+    showNotification('✅ تم التحديث', `تم تحميل ${names.length} أسماء إلى عجلة الحظ!`);
+}
+
+function drawLuckyWheel() {
+    const canvas = document.getElementById('luckyWheelCanvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const numSegments = wheelParticipants.length;
+    const arcSize = (2 * Math.PI) / numSegments;
+    const radius = canvas.width / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(radius, radius);
+    ctx.rotate(currentWheelRotation);
+
+    for(let i = 0; i < numSegments; i++) {
+        const angle = i * arcSize;
+        ctx.beginPath();
+        ctx.fillStyle = wheelColors[i % wheelColors.length];
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius - 4, angle, angle + arcSize);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#111b21';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw Name Text
+        ctx.save();
+        ctx.rotate(angle + arcSize / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 13px Cairo, sans-serif';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 4;
+        
+        let label = wheelParticipants[i];
+        if(label.length > 10) label = label.substring(0, 8) + '..';
+        ctx.fillText(label, radius - 20, 5);
+        ctx.restore();
+    }
+
+    // Center Gold Pin
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffd700';
+    ctx.fill();
+    ctx.strokeStyle = '#111b21';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function spinLuckyWheel() {
+    if(isSpinningWheel || !wheelParticipants.length) return;
+    isSpinningWheel = true;
+    
+    const spinBtn = document.getElementById('spinWheelBtn');
+    if(spinBtn) {
+        spinBtn.disabled = true;
+        spinBtn.innerText = '⏳ جاري التدوير...';
+    }
+
+    const winnerDisplay = document.getElementById('wheelWinnerDisplay');
+    if(winnerDisplay) winnerDisplay.classList.add('hidden');
+
+    const totalRounds = 5 + Math.random() * 5; // 5 to 10 full spins
+    const randomStopAngle = Math.random() * (2 * Math.PI);
+    const targetRotation = currentWheelRotation + (totalRounds * 2 * Math.PI) + randomStopAngle;
+    
+    const startTime = performance.now();
+    const duration = 4000; // 4 seconds animation
+
+    function animateWheel(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease out cubic
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        currentWheelRotation = currentWheelRotation + (targetRotation - currentWheelRotation) * easeOut;
+
+        drawLuckyWheel();
+
+        if(progress < 1) {
+            requestAnimationFrame(animateWheel);
+        } else {
+            isSpinningWheel = false;
+            currentWheelRotation = targetRotation % (2 * Math.PI);
+            
+            // Calculate winner
+            // Pointer is at the top (-PI/2)
+            const numSegments = wheelParticipants.length;
+            const arcSize = (2 * Math.PI) / numSegments;
+            // The segment under top pointer (270 deg or 3*PI/2)
+            const normalizedRotation = (2 * Math.PI - (currentWheelRotation % (2 * Math.PI)) + (3 * Math.PI / 2)) % (2 * Math.PI);
+            const winningIndex = Math.floor(normalizedRotation / arcSize) % numSegments;
+            
+            lastWheelWinner = wheelParticipants[winningIndex];
+
+            const winnerText = document.getElementById('wheelWinnerText');
+            if(winnerText) winnerText.innerText = `🎉 الفائز بالقرعة: ${lastWheelWinner}`;
+            if(winnerDisplay) winnerDisplay.classList.remove('hidden');
+
+            if(spinBtn) {
+                spinBtn.disabled = false;
+                spinBtn.innerText = '🎯 تدوير العجلة الآن!';
+            }
+
+            playAppSound('win');
+            spawnFloatingEmoji('🎉');
+            showNotification('🏆 نتيجة القرعة', `الفائز المختار هو: ${lastWheelWinner}`);
+        }
+    }
+
+    requestAnimationFrame(animateWheel);
+}
+
+function shareWheelResultInChat() {
+    if(!lastWheelWinner) {
+        showNotification('⚠️ تنبيه', 'قم بتدوير العجلة أولاً للحصول على فائز');
+        return;
+    }
+    if(!currentChatId) {
+        showNotification('⚠️ تنبيه', 'افتح محادثة أو مجموعة أولاً لمشاركة النتيجة');
+        return;
+    }
+    const message = `🎯 **نتيجة قرعة عجلة الحظ:**\n🏆 **الفائز:** ${lastWheelWinner}\n👥 **المشاركون:** ${wheelParticipants.join(', ')}`;
+    sendMessage(message, 'text');
+    closeModal('spinWheelModal');
+    showNotification('📢 تم النشر', 'تمت مشاركة نتيجة القرعة بالمحادثة بنجاح!');
+}
+
+// ==================== 12. TRUTH OR DARE (كرسي الاعتراف والصراحة) ====================
+const truthQuestions = [
+    'ما هو أكثر موقف محرج تعرضت له في حياتك ولم تخبر به أحداً؟',
+    'ما هي أكبر كذبة قلتها في حياتك وما زال الجميع يصدقها؟',
+    'لو أتيحت لك فرصة مسح خطأ واحد من ماضيك، ماذا سيكون؟',
+    'من هو الشخص في هذه الغرفة الذي تثق به أكثر من غيره؟',
+    'ما هي العادة الغريبة التي تفعلها وأنت وحدك ولا يعلمها أحد؟',
+    'ما هو الشيء الذي تخاف منه بشدة وتخجل من الاعتراف به؟',
+    'هل ندمت يوماً على مساعدة شخص ما؟ ولماذا؟',
+    'ما هو السر الذي لم تخبر به حتى أقرب أصدقائك؟',
+    'لو كان بإمكانك تغيير صفة واحدة في شخصيتك، فماذا ستختار؟',
+    'ما هو أغرب حلم حلمت به مؤخراً وتتذكره بتفاصيله؟',
+    'هل وقعت في حب شخص من طرف واحد من قبل؟',
+    'ما هو الشيء الذي لا تستطيع العيش بدونه أبداً؟'
+];
+
+const dareChallenges = [
+    'أرسل رسالة صوتية للمجموعة وأنت تقلد صوت قطة أو شخصية كرتونية!',
+    'قم بتغيير صورة ملفك الشخصي إلى صورة مضحكة لمدة 10 دقائق!',
+    'اكتب رسالة اعتذار مضحكة لآخر شخص تحدثت معه على الخاص!',
+    'قم بإرسال نكتة مضحكة جداً الآن في المحادثة!',
+    'أرسل رسالة صوتية وأنت تغني فيها مقطعاً من أغنيتك المفضلة!',
+    'اكتب حكمة من تأليفك وأقنع الجميع أنها حكمة لفيلسوف يوناني!',
+    'قل 5 مجاملات سريعة لخمسة أعضاء مختلفين في المحادثة!',
+    'أرسل ملصقاً عشوائياً بدون تفسير لأول شخص متصل الآن!',
+    'تحدث باللغة الفصحى فقط طوال الـ 5 دقائق القادمة!'
+];
+
+let lastTodText = '';
+let lastTodType = '';
+let currentBottleAngle = 0;
+
+function openTruthOrDareGame() {
+    const modal = document.getElementById('truthOrDareModal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+}
+
+function spinTheBottle() {
+    const bottle = document.getElementById('spinBottleElem');
+    const playerText = document.getElementById('selectedPlayerText');
+    if(!bottle) return;
+
+    const randomRotations = 4 + Math.floor(Math.random() * 5); // 4-8 spins
+    const randomExtraAngle = Math.floor(Math.random() * 360);
+    currentBottleAngle += (randomRotations * 360) + randomExtraAngle;
+
+    bottle.style.transform = `rotate(${currentBottleAngle}deg)`;
+    if(playerText) playerText.innerText = '⏳ الزجاجة تدور لاختيار اللاعب...';
+
+    // Pick random participant
+    const users = Object.keys(registeredUsersCache || {});
+    const pool = users.length > 0 ? users : [myName, 'صديقك'];
+    const chosenOne = pool[Math.floor(Math.random() * pool.length)];
+
+    setTimeout(() => {
+        if(playerText) {
+            playerText.innerHTML = `🎯 وقع الاختيار على: <span style="color:var(--primary); font-size:18px;">${chosenOne}</span>! اختر صراحة أو جرأة:`;
+        }
+        playAppSound('pop');
+    }, 3000);
+}
+
+function pickTruthQuestion() {
+    const q = truthQuestions[Math.floor(Math.random() * truthQuestions.length)];
+    lastTodText = q;
+    lastTodType = '💬 سؤال صراحة';
+
+    displayTodCard(lastTodType, lastTodText, '#3498db');
+}
+
+function pickDareChallenge() {
+    const d = dareChallenges[Math.floor(Math.random() * dareChallenges.length)];
+    lastTodText = d;
+    lastTodType = '🔥 تحدي وجرأة';
+
+    displayTodCard(lastTodType, lastTodText, '#e74c3c');
+}
+
+function displayTodCard(type, text, badgeColor) {
+    const card = document.getElementById('todCardContainer');
+    const badge = document.getElementById('todTypeBadge');
+    const txt = document.getElementById('todQuestionText');
+
+    if(card && badge && txt) {
+        card.classList.remove('hidden');
+        badge.innerText = type;
+        badge.style.background = badgeColor;
+        badge.style.color = '#ffffff';
+        txt.innerText = text;
+    }
+}
+
+function shareTodInChat() {
+    if(!lastTodText) return;
+    if(!currentChatId) {
+        showNotification('⚠️ تنبيه', 'افتح محادثة أو مجموعة أولاً لإرسال السؤال');
+        return;
+    }
+    const message = `🎲 **لعبة الصراحة أو الجرأة (كرسي الاعتراف):**\n${lastTodType}:\n👉 **${lastTodText}**\n\n_في انتظار إجابتك الآن!_ ✨`;
+    sendMessage(message, 'text');
+    closeModal('truthOrDareModal');
+    showNotification('📨 تم الإرسال', 'تم إرسال السؤال إلى المحادثة بنجاح!');
+}
+
+// ==================== 13. RANDOM NUMBER & DICE ROLL ====================
+const diceFaces = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+function openDiceGame() {
+    const modal = document.getElementById('diceModal');
+    if(!modal) return;
+    modal.classList.remove('hidden');
+    switchDiceTab('dice');
+}
+
+function switchDiceTab(tab) {
+    const tabDice = document.getElementById('tabDiceRoll');
+    const tabNum = document.getElementById('tabRandNum');
+    const diceView = document.getElementById('diceRollView');
+    const numView = document.getElementById('randNumView');
+
+    if(tab === 'dice') {
+        if(tabDice) tabDice.classList.add('active');
+        if(tabNum) tabNum.classList.remove('active');
+        if(diceView) diceView.classList.remove('hidden');
+        if(numView) numView.classList.add('hidden');
+    } else {
+        if(tabDice) tabDice.classList.remove('active');
+        if(tabNum) tabNum.classList.add('active');
+        if(diceView) diceView.classList.add('hidden');
+        if(numView) numView.classList.remove('hidden');
+    }
+}
+
+function rollTheDice() {
+    const d1 = document.getElementById('diceFace1');
+    const d2 = document.getElementById('diceFace2');
+    const resText = document.getElementById('diceResultText');
+
+    let rollCount = 0;
+    const rollInterval = setInterval(() => {
+        const r1 = Math.floor(Math.random() * 6);
+        const r2 = Math.floor(Math.random() * 6);
+        if(d1) d1.innerText = diceFaces[r1];
+        if(d2) d2.innerText = diceFaces[r2];
+        rollCount++;
+
+        if(rollCount >= 10) {
+            clearInterval(rollInterval);
+            const total = (r1 + 1) + (r2 + 1);
+            if(resText) resText.innerHTML = `🎲 النتيجة: <b style="color:var(--admin-gold); font-size:18px;">${r1+1} + ${r2+1} = ${total}</b>`;
+            playAppSound('pop');
+            
+            if(currentChatId) {
+                // Auto announce dice roll in chat
+                sendMessage(`🎲 **رمي نرد:** حصل على (${r1+1} و ${r2+1}) = **المجموع ${total}**`, 'text');
+            }
+        }
+    }, 80);
+}
+
+function generateRandomNumber() {
+    const minInput = document.getElementById('randNumMin');
+    const maxInput = document.getElementById('randNumMax');
+    const display = document.getElementById('randNumResult');
+
+    const min = parseInt(minInput ? minInput.value : '1') || 1;
+    const max = parseInt(maxInput ? maxInput.value : '100') || 100;
+
+    if(min >= max) {
+        showNotification('⚠️ تنبيه', 'يجب أن يكون الحد الأدنى أصغر من الحد الأقصى');
+        return;
+    }
+
+    let count = 0;
+    const interval = setInterval(() => {
+        const temp = Math.floor(min + Math.random() * (max - min + 1));
+        if(display) display.innerText = temp;
+        count++;
+
+        if(count >= 12) {
+            clearInterval(interval);
+            const finalNum = Math.floor(min + Math.random() * (max - min + 1));
+            if(display) display.innerText = finalNum;
+            playAppSound('win');
+            
+            if(currentChatId) {
+                sendMessage(`🔢 **قرعة رقمية عشوائية:** الرقم المختار بين (${min} و ${max}) هو: **${finalNum}** 🎯`, 'text');
+            }
+        }
+    }, 60);
+}
+
+// Sound Helper
+function playAppSound(type) {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if(type === 'win') {
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); // E5
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); // G5
+            osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3); // C6
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.5);
+        } else {
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+    } catch(e) {}
+}
+
 // ==================== INITIALIZATION ORCHESTRATOR ====================
 function initAllExtraFeatures() {
     initSpeechRecognition();
@@ -934,3 +1344,4 @@ function initAllExtraFeatures() {
 
 // Start
 initAllExtraFeatures();
+

@@ -1775,3 +1775,516 @@ button.action-btn.gold { background: var(--admin-gold); color: #000; }
     .modal-content { width: 95%; padding: 18px; }
     .game-cell { width: 52px; height: 52px; font-size: 26px; }
 }
+
+/* ==================== WHATSAPP MODERN UI UPGRADE ==================== */
+
+/* Header & Profile Wrap */
+.header-profile-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 12px;
+    transition: background 0.2s ease;
+}
+.header-profile-wrap:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.avatar-container {
+    position: relative;
+    display: inline-block;
+}
+.online-indicator-dot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 12px;
+    height: 12px;
+    background: #25d366;
+    border: 2px solid #202c33;
+    border-radius: 50%;
+}
+
+.user-header-info {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+}
+.header-username {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-light);
+}
+.header-points {
+    color: var(--admin-gold);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.notif-btn-wrap {
+    position: relative;
+}
+.badge-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--delete-red);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid #111b21;
+    animation: pulse 1.5s infinite;
+}
+
+/* Menu Dropdown */
+.menu-dropdown-wrap {
+    position: relative;
+}
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #233138;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    min-width: 190px;
+    padding: 6px;
+    z-index: 1000;
+    margin-top: 8px;
+    animation: fadeIn 0.2s ease;
+}
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-light);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    text-align: right;
+}
+.menu-item:hover {
+    background: rgba(0, 168, 132, 0.15);
+    color: var(--primary);
+}
+.menu-item.danger {
+    color: var(--delete-red);
+}
+.menu-item.danger:hover {
+    background: rgba(234, 67, 53, 0.15);
+}
+
+/* INCOMING FRIEND / CHAT REQUEST BANNER */
+.request-alert-banner {
+    background: linear-gradient(135deg, rgba(0, 92, 75, 0.95), rgba(17, 27, 33, 0.95));
+    border-bottom: 2px solid var(--primary);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    z-index: 25;
+}
+.request-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    overflow: hidden;
+}
+.request-banner-icon {
+    font-size: 22px;
+    animation: wave 1s infinite ease-in-out;
+}
+.request-banner-text {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    overflow: hidden;
+}
+.request-banner-text span {
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--admin-gold);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.request-banner-text small {
+    font-size: 11px;
+    color: var(--text-light);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.request-banner-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.req-accept-btn {
+    background: var(--primary);
+    color: #111b21;
+    font-weight: 800;
+    font-size: 12px;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+.req-accept-btn:hover {
+    background: #25d366;
+    transform: scale(1.05);
+}
+.req-reject-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-gray);
+    font-size: 12px;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.req-reject-btn:hover {
+    background: rgba(234, 67, 53, 0.2);
+    color: var(--delete-red);
+}
+
+/* SEARCH SECTION */
+.search-section {
+    padding: 10px 14px;
+    background: #111b21;
+}
+.search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #202c33;
+    border-radius: 20px;
+    padding: 4px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: border-color 0.2s;
+}
+.search-input-wrap:focus-within {
+    border-color: var(--primary);
+}
+.search-icon {
+    color: var(--text-gray);
+    font-size: 13px;
+    margin-left: 8px;
+}
+.search-input-wrap input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    font-size: 13px;
+    padding: 6px 0;
+    font-family: inherit;
+}
+.clear-search-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-gray);
+    cursor: pointer;
+    padding: 4px;
+}
+
+/* WHATSAPP TABS */
+.whatsapp-tabs {
+    display: flex;
+    background: #111b21;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.wa-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-gray);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+.wa-tab:hover {
+    color: var(--text-light);
+    background: rgba(255, 255, 255, 0.02);
+}
+.wa-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.tab-badge {
+    background: var(--primary);
+    color: #111b21;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 1px 6px;
+    border-radius: 10px;
+}
+
+/* QUICK START CHAT BUTTON & ONLINE LIST */
+.quick-start-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0, 168, 132, 0.08);
+    border-bottom: 1px solid rgba(0, 168, 132, 0.15);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+.quick-start-chat-btn:hover {
+    background: rgba(0, 168, 132, 0.15);
+}
+.quick-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #111b21;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+.quick-text {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+}
+.quick-text b {
+    font-size: 14px;
+    color: var(--text-light);
+}
+.quick-text small {
+    font-size: 11px;
+    color: var(--text-gray);
+}
+
+.online-members-section {
+    margin-top: 10px;
+}
+.section-title {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-gray);
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* STORIES FULL LIST VIEW */
+.my-status-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+}
+.my-status-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.status-avatar-wrap {
+    position: relative;
+}
+.add-status-plus {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #111b21;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 900;
+    border: 2px solid #111b21;
+}
+
+/* GAMES HUB */
+.games-lounge-header {
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(0, 168, 132, 0.15), rgba(255, 215, 0, 0.1));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: right;
+}
+.games-lounge-header h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: var(--text-light);
+}
+.games-lounge-header p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-gray);
+}
+
+.games-grid-hub {
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+@media (min-width: 600px) {
+    .games-grid-hub {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.game-hub-card {
+    background: #202c33;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+.game-hub-card:hover {
+    background: #2a3942;
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.game-hub-card.highlight {
+    border-color: rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, rgba(32, 44, 51, 0.9), rgba(42, 57, 66, 0.9));
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.15);
+}
+.game-hub-icon {
+    font-size: 32px;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+.game-hub-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+}
+.game-hub-info b {
+    font-size: 14px;
+    color: var(--text-light);
+    margin-bottom: 2px;
+}
+.game-hub-info span {
+    font-size: 11px;
+    color: var(--text-gray);
+    line-height: 1.4;
+}
+.game-play-tag {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--primary);
+    background: rgba(0, 168, 132, 0.15);
+    padding: 4px 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+/* FLOATING ACTION BUTTON (FAB) */
+.whatsapp-fab-container {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+}
+.whatsapp-fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #111b21;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0, 168, 132, 0.5);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.whatsapp-fab:hover {
+    background: #25d366;
+    transform: scale(1.08) rotate(5deg);
+}
+.whatsapp-fab:active {
+    transform: scale(0.95);
+}
+
+.fab-speed-dial {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    animation: slideUp 0.25s ease;
+}
+.fab-action-btn {
+    background: #202c33;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-light);
+    padding: 8px 14px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease;
+}
+.fab-action-btn:hover {
+    background: var(--primary);
+    color: #111b21;
+    transform: translateX(-4px);
+}
+.fab-action-btn i {
+    font-size: 14px;
+}
+
