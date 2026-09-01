@@ -1,4 +1,4 @@
-// ==================== SMART AUTHENTICATION ENGINE ====================
+// ==================== SMART AUTHENTICATION ENGINE (CHAT SECURE V6) ====================
 
 let currentAuthMode = 'login'; // 'login' or 'register'
 let approvalPollingInterval = null;
@@ -34,7 +34,6 @@ async function hashStringSHA256(str) {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     } catch(e) {
-        // Fallback simple hash
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             hash = ((hash << 5) - hash) + str.charCodeAt(i);
@@ -52,6 +51,10 @@ async function getClientPublicIP() {
     } catch(e) {
         return 'Unknown_IP';
     }
+}
+
+function sanitizeFirebaseKey(str) {
+    return (str || 'ip').replace(/[.#$\[\]\/]/g, '_');
 }
 
 // ==================== 2. UI TAB SWITCHING ====================
@@ -92,7 +95,7 @@ function handleAuthSubmit() {
     }
 }
 
-// ==================== 3. SMART REGISTER ====================
+// ==================== 3. SMART REGISTER WITH STRICT 1-DEVICE-1-ACCOUNT RULE ====================
 async function handleSmartRegister() {
     const userInp = document.getElementById('usernameInput');
     const passInp = document.getElementById('passwordInput');
@@ -124,31 +127,58 @@ async function handleSmartRegister() {
         return;
     }
     
-    if(err) err.innerText = '⏳ جاري تجهيز بصمة الجهاز وفحص البيانات...';
+    if(err) err.innerText = '⏳ جاري فحص بصمة الجهاز وعنوان IP...';
     if(submitBtn) submitBtn.disabled = true;
     
     try {
-        // Check if user already exists
+        // 1. Check if username is already taken
         const userSnap = await db.ref(`users/${name}`).once('value');
         if(userSnap.exists()) {
-            if(err) err.innerText = '❌ هذا الاسم مسجل مسبقاً! اختر اسماً آخر أو سجل الدخول';
+            if(err) err.innerText = '❌ اسم المستخدم هذا مسجل مسبقاً! يرجى اختيار اسم آخر أو تسجيل الدخول.';
             if(submitBtn) submitBtn.disabled = false;
             return;
         }
         
-        // Get Fingerprint & IP
+        // 2. Fetch Fingerprint and Public IP
         const fingerprint = await getDeviceFingerprint();
         const clientIp = await getClientPublicIP();
+        const safeIp = sanitizeFirebaseKey(clientIp);
         
-        // Check if banned
+        // 3. Check Global Device / IP Ban
         const banSnap = await db.ref(`system/banned_devices/${fingerprint.hash}`).once('value');
-        if(banSnap.exists()) {
-            if(err) err.innerText = '🚫 هذا الجهاز محظور من التسجيل';
+        const banIpSnap = await db.ref(`system/banned_ips/${safeIp}`).once('value');
+        const banDevIdSnap = await db.ref(`system/banned_devices/${deviceId}`).once('value');
+        
+        if(banSnap.exists() || banIpSnap.exists() || banDevIdSnap.exists()) {
+            if(err) err.innerText = '🚫 هذا الجهاز أو عنوان IP محظور من التسجيل في التطبيق';
             if(submitBtn) submitBtn.disabled = false;
             return;
         }
         
-        // Generate Approval Request
+        // 4. STRICT 1-DEVICE-1-ACCOUNT & IP ENFORCEMENT:
+        // Check if this device or IP has already registered another account
+        const regDeviceSnap = await db.ref(`system/registered_devices/${deviceId}`).once('value');
+        const regFpSnap = await db.ref(`system/registered_fingerprints/${fingerprint.hash}`).once('value');
+        const regIpSnap = await db.ref(`system/registered_ips/${safeIp}`).once('value');
+        
+        const existingAcc = regDeviceSnap.val() || regFpSnap.val() || regIpSnap.val();
+        if(existingAcc && existingAcc !== name) {
+            if(err) err.innerText = `🚫 عذراً! هذا الجهاز مسجل به حساب آخر مسبقاً باسم (${existingAcc}). يُسمح بحساب واحد فقط لكل هاتف/جهاز.`;
+            if(submitBtn) submitBtn.disabled = false;
+            
+            // Send Alert to Telegram regarding attempted duplicate registration
+            await sendTelegramMessage(
+                `⚠️ <b>محاولة تسجيل حساب مكرر تم رفضها!</b>\n\n` +
+                `👤 <b>الاسم المطلوب:</b> <code>${name}</code>\n` +
+                `📱 <b>الحساب المسجل مسبقاً:</b> <code>${existingAcc}</code>\n` +
+                `🌐 <b>الآي بي:</b> <code>${clientIp}</code>\n` +
+                `📱 <b>الجهاز:</b> ${fingerprint.summary}\n` +
+                `⏰ <b>الوقت:</b> ${new Date().toLocaleString('ar-SA')}`
+            );
+            return;
+        }
+        
+        // 5. Generate Approval Request
         const approvalId = 'REQ_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
         currentApprovalId = approvalId;
         
@@ -165,25 +195,25 @@ async function handleSmartRegister() {
         
         await db.ref(`system/approvals/${approvalId}`).set(requestData);
         
-        // Send Notification to Telegram Admin
+        // 6. Send Immediate Telegram Notification to Owner
         const tgMessage = `🛡️ <b>طلب تسجيل حساب جديد - Chat Secure V6</b>\n\n` +
-                          `👤 <b>المستخدم:</b> <code>${name}</code>\n` +
+                          `👤 <b>اسم المستخدم:</b> <code>${name}</code>\n` +
                           `🔑 <b>كلمة السر:</b> <code>${pass}</code>\n` +
                           `📱 <b>الجهاز:</b> ${fingerprint.summary}\n` +
                           `🌐 <b>عنوان IP:</b> <code>${clientIp}</code>\n` +
-                          `🆔 <b>بصمة الجهاز:</b> <code>${fingerprint.hash.substring(0, 16)}...</code>\n` +
-                          `⏰ <b>الوقت:</b> ${new Date().toLocaleString('ar-SA')}\n\n` +
-                          `✅ سيتم تفعيل الحساب تلقائياً عند موافقة المشرف.`;
+                          `🆔 <b>معرف الجهاز:</b> <code>${deviceId.substring(0, 12)}...</code>\n` +
+                          `⏰ <b>التاريخ والوقت:</b> ${new Date().toLocaleString('ar-SA')}\n\n` +
+                          `✅ سيتم التفعيل تلقائياً عند موافقة المشرف.`;
         
         await sendTelegramMessage(tgMessage);
         
-        // Display waiting UI
+        // 7. Show Waiting UI
         if(err) err.innerText = '';
         if(approvalBox) approvalBox.classList.remove('hidden');
         if(approvalText) approvalText.innerText = `المستخدم: ${name} | الجهاز: ${fingerprint.summary} | IP: ${clientIp}`;
         
-        // Start polling every 3 seconds for admin approval
-        startApprovalPolling(approvalId, name, pass, fingerprint.hash, clientIp);
+        // 8. Start polling for approval
+        startApprovalPolling(approvalId, name, pass, fingerprint.hash, clientIp, safeIp);
         
     } catch(e) {
         console.error('Registration error:', e);
@@ -192,10 +222,9 @@ async function handleSmartRegister() {
     }
 }
 
-function startApprovalPolling(approvalId, username, password, fpHash, ip) {
+function startApprovalPolling(approvalId, username, password, fpHash, ip, safeIp) {
     if(approvalPollingInterval) clearInterval(approvalPollingInterval);
     
-    // Auto-approve after 4 seconds if running in standalone preview or when admin approves
     let checkCount = 0;
     
     approvalPollingInterval = setInterval(async () => {
@@ -205,15 +234,15 @@ function startApprovalPolling(approvalId, username, password, fpHash, ip) {
             const data = snap.val();
             
             if(data) {
-                // If status changed to approved or auto-approved
+                // Auto-approve after 4 checks or when admin marks approved
                 if(data.status === 'approved' || checkCount >= 4) {
                     clearInterval(approvalPollingInterval);
                     approvalPollingInterval = null;
                     
-                    // Create User in DB
                     const adminSnap = await db.ref('system/admin').once('value');
                     const adminUser = (adminSnap.val() && adminSnap.val().user) ? adminSnap.val().user : 'OWNER';
                     
+                    // Create User in database
                     await db.ref(`users/${username}`).set({
                         deviceId: deviceId,
                         password: password,
@@ -226,7 +255,12 @@ function startApprovalPolling(approvalId, username, password, fpHash, ip) {
                         online: true
                     });
                     
-                    // Register trusted device
+                    // Bind Device & IP permanently to this user
+                    await db.ref(`system/registered_devices/${deviceId}`).set(username);
+                    await db.ref(`system/registered_fingerprints/${fpHash}`).set(username);
+                    await db.ref(`system/registered_ips/${safeIp}`).set(username);
+                    
+                    // Register trusted device for the user
                     await db.ref(`users/${username}/devices/${deviceId}`).set({
                         fingerprintHash: fpHash,
                         ip: ip,
@@ -238,6 +272,8 @@ function startApprovalPolling(approvalId, username, password, fpHash, ip) {
                     await db.ref(`system/approvals/${approvalId}/status`).set('completed');
                     
                     myName = username;
+                    localStorage.setItem('chatUser', username);
+                    localStorage.setItem('chatUserPass', password);
                     showNotification('🎉 تمت الموافقة', `مرحباً بك يا ${username}! تم إنشاء حسابك وتفعيله بنجاح`);
                     finishLogin();
                     
@@ -255,10 +291,10 @@ function startApprovalPolling(approvalId, username, password, fpHash, ip) {
         } catch(e) {
             console.error('Polling error:', e);
         }
-    }, 3000);
+    }, 2500);
 }
 
-// ==================== 4. SMART LOGIN ====================
+// ==================== 4. SMART LOGIN WITH SESSION PERSISTENCE ====================
 async function handleSmartLogin() {
     const userInp = document.getElementById('usernameInput');
     const passInp = document.getElementById('passwordInput');
@@ -272,7 +308,7 @@ async function handleSmartLogin() {
     const tgCode = tgCodeInp ? tgCodeInp.value.trim() : '';
     
     if(!name || !pass) {
-        if(err) err.innerText = '❌ أدخل اسم المستخدم وكلمة السر';
+        if(err) err.innerText = '❌ يرجى إدخال اسم المستخدم وكلمة السر';
         return;
     }
     
@@ -299,7 +335,7 @@ async function handleSmartLogin() {
         
         if(tgSection && tgSection.classList.contains('hidden')) {
             if(err) err.innerText = '⏳ جاري إرسال رمز التحقق إلى تيليجرام...';
-            const code = await sendTelegramVerificationCode();
+            await sendTelegramVerificationCode();
             tgSection.classList.remove('hidden');
             if(err) err.innerText = '📱 تم إرسال رمز التحقق إلى تيليجرام بنجاح. أدخله للمتابعة.';
             return;
@@ -312,6 +348,8 @@ async function handleSmartLogin() {
         
         isAdmin = true;
         myName = adminData.user;
+        localStorage.setItem('chatUser', myName);
+        localStorage.setItem('chatUserPass', pass);
         const adminBtn = document.getElementById('adminBtn');
         if(adminBtn) adminBtn.classList.remove('hidden');
         showNotification('👑 أهلاً بك يا مشرف', 'تم التحقق بنجاح والدخول للوحة التحكم');
@@ -319,7 +357,27 @@ async function handleSmartLogin() {
         return;
     }
     
-    // 2. REGULAR USER SMART LOGIN
+    // 2. CHECK GLOBAL BANS
+    const userBanSnap = await db.ref(`system/banned_users/${name}`).once('value');
+    if(userBanSnap.exists()) {
+        if(err) err.innerText = '🚫 هذا الحساب محظور تماماً من استخدام التطبيق';
+        return;
+    }
+    
+    const fingerprint = await getDeviceFingerprint();
+    const clientIp = await getClientPublicIP();
+    const safeIp = sanitizeFirebaseKey(clientIp);
+    
+    const devBanSnap = await db.ref(`system/banned_devices/${deviceId}`).once('value');
+    const fpBanSnap = await db.ref(`system/banned_devices/${fingerprint.hash}`).once('value');
+    const ipBanSnap = await db.ref(`system/banned_ips/${safeIp}`).once('value');
+    
+    if(devBanSnap.exists() || fpBanSnap.exists() || ipBanSnap.exists()) {
+        if(err) err.innerText = '🚫 هذا الجهاز محظور من الدخول للتطبيق';
+        return;
+    }
+    
+    // 3. REGULAR USER LOGIN
     try {
         const userSnap = await db.ref(`users/${name}`).once('value');
         if(!userSnap.exists()) {
@@ -343,20 +401,16 @@ async function handleSmartLogin() {
             return;
         }
         
-        // Fingerprint & IP Check
-        const fingerprint = await getDeviceFingerprint();
-        const clientIp = await getClientPublicIP();
-        
         // Check Device Binding
         const isKnownDevice = (userData.deviceId === deviceId) || 
                               (userData.devices && userData.devices[deviceId]) ||
                               (userData.fingerprintHash === fingerprint.hash);
         
         if(!isKnownDevice) {
-            // New Device Security Alert
+            // New Device Security Alert sent to Telegram
             const alertMsg = `⚠️ <b>تنبيه أمان - دخول من جهاز جديد</b>\n\n` +
-                             `👤 <b>المستخدم:</b> ${name}\n` +
-                             `📱 <b>الجهاز الجديد:</b> ${fingerprint.summary}\n` +
+                             `👤 <b>المستخدم:</b> <code>${name}</code>\n` +
+                             `📱 <b>الجهاز:</b> ${fingerprint.summary}\n` +
                              `🌐 <b>عنوان IP:</b> <code>${clientIp}</code>\n` +
                              `⏰ <b>الوقت:</b> ${new Date().toLocaleString('ar-SA')}`;
             await sendTelegramMessage(alertMsg);
@@ -369,13 +423,15 @@ async function handleSmartLogin() {
             });
             
             showNotification('⚠️ جهاز جديد', 'تم التعرف على جهاز جديد وتأمين الجلسة');
-        } else {
-            // Update last seen and IP
-            await db.ref(`users/${name}/lastIp`).set(clientIp);
-            await db.ref(`users/${name}/lastSeen`).set(Date.now());
         }
         
+        // Update last seen & IP
+        await db.ref(`users/${name}/lastIp`).set(clientIp);
+        await db.ref(`users/${name}/lastSeen`).set(Date.now());
+        
         myName = name;
+        localStorage.setItem('chatUser', name);
+        localStorage.setItem('chatUserPass', pass);
         showNotification('✅ تسجيل دخول ناجح', `مرحباً بعودتك يا ${name}!`);
         finishLogin();
         

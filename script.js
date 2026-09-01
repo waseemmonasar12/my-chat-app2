@@ -1,4 +1,4 @@
-// ==================== FIREBASE CONFIG ====================
+// ==================== FIREBASE CONFIG (CHAT SECURE V6) ====================
 const firebaseConfig = {
     apiKey: "AIzaSyACnX1Xu-2XiyxYtGT_wUzfMqVcUddVxKs",
     authDomain: "chat-9c623.firebaseapp.com",
@@ -33,7 +33,19 @@ let ctxMsgKey = null;
 let ctxSender = null;
 let ctxContent = null;
 let ctxMsgType = 'text';
-let isAdmin = false;
+
+let isAdmin = false; // Primary Owner Admin
+let isDeputyAdmin = false; // Assistant / Deputy Admin
+let deputyPermissions = {
+    muteMembers: false,
+    banMembers: false,
+    pinMessages: false,
+    clearChat: false,
+    approveRegistrations: false,
+    postAnnouncements: false,
+    viewStats: false
+};
+
 let typingTimeout;
 let replyData = null;
 let tempProfileAvatar = null;
@@ -182,7 +194,7 @@ function showAISuggestions() {
         }
         
         if(!suggestionsFound) {
-            const defaults = ['حسناً تمام 👍', 'أوافقك الرأي 👌', 'إن شاء الله خير 🙏', 'أكيد ممتاز ✨', 'تسلم يا بطل 👏'];
+            const defaults = ['حسناً 👍', 'تمام التمام 👌', 'إن شاء الله 🙏', 'أوكي اتفقنا 😊', 'رائع جداً ✨'];
             defaults.forEach(resp => {
                 const chip = document.createElement('span');
                 chip.className = 'ai-suggestion-chip';
@@ -202,15 +214,17 @@ function insertSuggestion(text) {
         input.value = text;
         input.focus();
     }
-    const suggestions = document.getElementById('aiSuggestions');
-    if(suggestions) suggestions.style.display = 'none';
+    const sug = document.getElementById('aiSuggestions');
+    if(sug) sug.style.display = 'none';
 }
 
 function toggleAISuggestions() {
     const chk = document.getElementById('aiSuggestionsEnabled');
     aiSuggestionsEnabled = chk ? chk.checked : true;
-    const sug = document.getElementById('aiSuggestions');
-    if(!aiSuggestionsEnabled && sug) sug.style.display = 'none';
+    if(!aiSuggestionsEnabled) {
+        const sug = document.getElementById('aiSuggestions');
+        if(sug) sug.style.display = 'none';
+    }
 }
 
 function toggleAITranslation() {
@@ -248,8 +262,8 @@ function toggleTranslation() {
 
 async function translateMessages() {
     if(!translationEnabled) return;
-    const langSelect = document.getElementById('translationLanguage');
-    const lang = langSelect ? langSelect.value : 'en';
+    const select = document.getElementById('translationLanguage');
+    const lang = select ? select.value : 'ar';
     const messages = document.querySelectorAll('.msg');
     
     for(let msg of messages) {
@@ -260,11 +274,12 @@ async function translateMessages() {
             textSpan.dataset.translated = 'true';
             
             const translations = {
-                'en': { 'مرحبا': 'Hello', 'شكرا': 'Thank you', 'صباح الخير': 'Good morning', 'كيف حالك': 'How are you', 'نعم': 'Yes', 'لا': 'No' },
-                'fr': { 'مرحبا': 'Bonjour', 'شكرا': 'Merci', 'صباح الخير': 'Bonjour', 'كيف حالك': 'Comment allez-vous' },
-                'es': { 'مرحبا': 'Hola', 'شكرا': 'Gracias', 'صباح الخير': 'Buenos días', 'كيف حالك': 'Cómo estás' },
-                'de': { 'مرحبا': 'Hallo', 'شكرا': 'Danke', 'صباح الخير': 'Guten Morgen', 'كيف حالك': 'Wie geht es dir' },
-                'tr': { 'مرحبا': 'Merhaba', 'شكرا': 'Teşekkürler', 'صباح الخير': 'Günaydın' }
+                'ar': { 'hello': 'مرحبا', 'thank you': 'شكرا', 'good morning': 'صباح الخير', 'good night': 'تصبح على خير' },
+                'en': { 'مرحبا': 'Hello', 'شكرا': 'Thank you', 'صباح الخير': 'Good morning', 'كيف حالك': 'How are you' },
+                'fr': { 'مرحبا': 'Bonjour', 'شكرا': 'Merci', 'صباح الخير': 'Bonjour' },
+                'es': { 'مرحبا': 'Hola', 'شكرا': 'Gracias', 'صباح الخير': 'Buenos días' },
+                'de': { 'مرحبا': 'Hallo', 'شكرا': 'Danke', 'صباح الخير': 'Guten Morgen' },
+                'it': { 'مرحبا': 'Ciao', 'شكرا': 'Grazie', 'صباح الخير': 'Buongiorno' }
             };
             
             let translated = originalText;
@@ -279,34 +294,38 @@ async function translateMessages() {
             if(lang === 'ar') {
                 textSpan.textContent = originalText;
             } else {
-                textSpan.textContent = `[${lang.toUpperCase()}] ${translated}`;
+                textSpan.textContent = `[${lang}] ${translated}`;
             }
         }
     }
 }
 
 function ctxTranslate() {
-    const langSelect = document.getElementById('translationLanguage');
-    const lang = langSelect ? langSelect.value : 'en';
-    showNotification('🌐 ترجمة فورية', `تم تفعيل الترجمة للغة: ${lang}`);
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const lang = document.getElementById('translationLanguage')?.value || 'en';
+    showNotification('🌐 ترجمة فورية', `تم تفعيل الترجمة للغة ${lang}`);
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 function ctxSummarize() {
     if(ctxMsgType === 'text' && ctxContent) {
         const words = ctxContent.split(' ');
-        let summary = words.length > 8 ? words.slice(0, 8).join(' ') + '...' : ctxContent;
-        showNotification('📝 تلخيص الرسالة', `الملخص الذكي: ${summary}`);
+        let summary = '';
+        if(words.length > 8) {
+            summary = words.slice(0, 8).join(' ') + '...';
+        } else {
+            summary = ctxContent;
+        }
+        showNotification('📝 ملخص الذكاء الاصطناعي', `الملخص: ${summary}`);
     }
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 function detectSentiment(text) {
     if(!aiSentimentEnabled || !text) return null;
-    const positiveWords = ['حب', 'رائع', 'جميل', 'ممتاز', 'سعيد', 'فرح', 'حلو', 'عظيم', 'مذهل', 'مبروك', 'شكرا'];
-    const negativeWords = ['حزين', 'سيء', 'غاضب', 'كراهية', 'مزعج', 'سيئ', 'بشع', 'مؤلم', 'زعلان', 'خطأ'];
+    const positiveWords = ['حب', 'رائع', 'جميل', 'ممتاز', 'سعيد', 'فرح', 'حلو', 'عظيم', 'مذهل', 'شكرا', 'يسعدك', 'نورت'];
+    const negativeWords = ['حزين', 'سيء', 'غاضب', 'كراهية', 'مزعج', 'سيئ', 'بشع', 'مؤلم', 'زعلان', 'تعبان', 'مريض'];
     
     let positive = 0;
     let negative = 0;
@@ -315,7 +334,7 @@ function detectSentiment(text) {
     
     if(positive > negative) return '😊 إيجابي';
     if(negative > positive) return '😢 سلبي';
-    return null;
+    return '😐 محايد';
 }
 
 function correctSpelling(text) {
@@ -328,8 +347,8 @@ function correctSpelling(text) {
         'كيفك': 'كيف حالك',
         'تمام': 'تماماً',
         'ان شاء الله': 'إن شاء الله',
-        'السلام عليكم': 'السلام عليكم ورحمة الله',
-        'وعليكم السلام': 'وعليكم السلام ورحمة الله'
+        'السلام عليكم': 'السلام عليكم',
+        'وعليكم السلام': 'وعليكم السلام'
     };
     
     let corrected = text;
@@ -344,13 +363,13 @@ function chatbotResponse(text) {
     const lowerText = text.toLowerCase();
     
     const responses = {
-        'مرحبا': 'أهلاً بك في Chat Secure V6! كيف يمكنني مساعدتك اليوم؟ 😊',
-        'هلا': 'هلا وغلا! نورت التطبيق ✨',
-        'كيف حالك': 'أنا بخير وبأتم الاستعداد لخدمتك! وأنت كيف حالك؟ 🌟',
-        'مين انت': 'أنا المساعد الذكي لتطبيق Chat Secure V6 المشفر 🤖',
-        'شو بتعمل': 'أساعدك في الترجمة، التشفير، وتنظيم محادثاتك الآمنة 💬',
-        'شكرا': 'العفو في أي وقت دائماً في خدمتك! 🙏',
-        'وداعا': 'في أمان الله وحفظه، إلى اللقاء! 👋'
+        'مرحبا': 'أهلاً بك! كيف يمكنني مساعدتك اليوم؟ 😊',
+        'هلا': 'هلا والله! نورت تطبيق Chat Secure V6 ✨',
+        'كيف حالك': 'أنا مساعدك الذكي وبأفضل حال، شكراً لسؤالك! وأنت؟ 😊',
+        'من انت': 'أنا المساعد الذكي لتطبيق Chat Secure V6 🤖',
+        'ماذا تفعل': 'أساعد في ترجمة وتأمين المحادثات وإدارة المجموعات 💬',
+        'شكرا': 'العفو يا غالي! دائماً في خدمتك 🙏',
+        'وداعا': 'مع السلامة وفي أمان الله! 👋'
     };
     
     for(let key in responses) {
@@ -369,8 +388,8 @@ function toggleAttachMenu() {
     if(menu) menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
 }
 
-// ==================== FILE HANDLING ====================
-function fileToCompressedBase64(file, callback, maxSize = 500) {
+// ==================== FILE HANDLING & COMPRESSION ====================
+function fileToCompressedBase64(file, callback, maxSize = 600) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
@@ -398,7 +417,7 @@ function fileToBase64(file, callback) {
 }
 
 function previewProfileAvatar(input) {
-    if(input.files && input.files[0]) {
+    if(input.files[0]) {
         fileToCompressedBase64(input.files[0], (base64) => {
             tempProfileAvatar = base64;
             const prev = document.getElementById('profileAvatarPreview');
@@ -406,12 +425,12 @@ function previewProfileAvatar(input) {
                 prev.src = base64;
                 prev.style.display = 'block';
             }
-        }, 300);
+        });
     }
 }
 
 function previewGroupAvatar(input) {
-    if(input.files && input.files[0]) {
+    if(input.files[0]) {
         fileToCompressedBase64(input.files[0], (base64) => {
             tempGroupAvatar = base64;
             const prev = document.getElementById('groupAvatarPreview');
@@ -419,12 +438,12 @@ function previewGroupAvatar(input) {
                 prev.src = base64;
                 prev.style.display = 'block';
             }
-        }, 300);
+        });
     }
 }
 
 function previewStoryImage(input) {
-    if(input.files && input.files[0]) {
+    if(input.files[0]) {
         fileToCompressedBase64(input.files[0], (base64) => {
             tempStoryImage = base64;
             const prev = document.getElementById('storyImagePreview');
@@ -432,12 +451,12 @@ function previewStoryImage(input) {
                 prev.src = base64;
                 prev.style.display = 'block';
             }
-        }, 600);
+        }, 800);
     }
 }
 
 function previewBgImage(input) {
-    if(input.files && input.files[0]) {
+    if(input.files[0]) {
         fileToCompressedBase64(input.files[0], (base64) => {
             tempBgImage = base64;
             const prev = document.getElementById('bgPreview');
@@ -466,13 +485,13 @@ async function startRecording() {
         };
         mediaRecorder.start();
         isRecording = true;
-        const voiceBtn = document.getElementById('voiceBtn');
-        if(voiceBtn) voiceBtn.classList.add('recording');
-        const ind = document.getElementById('recordingIndicator');
-        if(ind) ind.style.display = 'flex';
+        const vBtn = document.getElementById('voiceBtn');
+        const vInd = document.getElementById('recordingIndicator');
+        if(vBtn) vBtn.classList.add('recording');
+        if(vInd) vInd.style.display = 'flex';
         setTimeout(() => { if(isRecording) stopRecording(); }, 60000);
     } catch(err) {
-        showNotification('❌ خطأ في الميكروفون', 'يرجى إعطاء الإذن لتسجيل الصوت');
+        showNotification('❌ خطأ في الصوت', 'لا يمكن الوصول إلى الميكروفون');
     }
 }
 
@@ -482,15 +501,15 @@ function stopRecording() {
         mediaRecorder.stop();
     } catch(e) {}
     isRecording = false;
-    const voiceBtn = document.getElementById('voiceBtn');
-    if(voiceBtn) voiceBtn.classList.remove('recording');
-    const ind = document.getElementById('recordingIndicator');
-    if(ind) ind.style.display = 'none';
+    const vBtn = document.getElementById('voiceBtn');
+    const vInd = document.getElementById('recordingIndicator');
+    if(vBtn) vBtn.classList.remove('recording');
+    if(vInd) vInd.style.display = 'none';
 }
 
 // ==================== SEND MEDIA ====================
 function sendImage(input) {
-    if(input.files && input.files[0] && currentChatId) {
+    if(input.files[0] && currentChatId) {
         fileToCompressedBase64(input.files[0], async (compBase64) => { 
             await sendMessage(compBase64, 'image'); 
         }, 900);
@@ -499,9 +518,9 @@ function sendImage(input) {
 }
 
 function sendVideo(input) {
-    if(input.files && input.files[0] && currentChatId) {
+    if(input.files[0] && currentChatId) {
         if(input.files[0].size > 15 * 1024 * 1024) { 
-            showNotification('❌ حجم كبير', 'الحد الأقصى لحجم الفيديو 15 ميجابايت'); 
+            showNotification('❌ حجم كبير', 'الحد الأقصى للفيديو هو 15 ميجابايت'); 
             input.value = ''; 
             return; 
         }
@@ -513,9 +532,9 @@ function sendVideo(input) {
 }
 
 function sendDocument(input) {
-    if(input.files && input.files[0] && currentChatId) {
+    if(input.files[0] && currentChatId) {
         if(input.files[0].size > 10 * 1024 * 1024) { 
-            showNotification('❌ حجم كبير', 'الحد الأقصى لحجم المستند 10 ميجابايت'); 
+            showNotification('❌ حجم كبير', 'الحد الأقصى للمستند هو 10 ميجابايت'); 
             input.value = ''; 
             return; 
         }
@@ -533,7 +552,7 @@ async function sendMessage(content, type, fileName = '', fileSize = 0) {
         content = correctSpelling(content);
     }
     
-    const sentiment = (aiSentimentEnabled && type === 'text') ? detectSentiment(content) : null;
+    const sentiment = aiSentimentEnabled && type === 'text' ? detectSentiment(content) : null;
     
     const messageObj = { 
         sender: myName, 
@@ -574,30 +593,22 @@ const uint8ToBase64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)))
 const base64ToUint8 = (str) => new Uint8Array(atob(str).split('').map(c => c.charCodeAt(0)));
 
 async function encryptPacket(dataObj, password) {
-    try {
-        const jsonStr = JSON.stringify(dataObj);
-        const enc = new TextEncoder(); 
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const keyMat = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
-        const key = await crypto.subtle.deriveKey({name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256"}, keyMat, {name: "AES-GCM", length: 256}, false, ["encrypt"]);
-        const encrypted = await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, enc.encode(jsonStr));
-        const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
-        combined.set(salt); 
-        combined.set(iv, salt.length); 
-        combined.set(new Uint8Array(encrypted), salt.length + iv.length);
-        return uint8ToBase64(combined);
-    } catch(e) {
-        console.error('Encryption error:', e);
-        return JSON.stringify(dataObj);
-    }
+    const jsonStr = JSON.stringify(dataObj);
+    const enc = new TextEncoder(); 
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const keyMat = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey({name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256"}, keyMat, {name: "AES-GCM", length: 256}, false, ["encrypt"]);
+    const encrypted = await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, enc.encode(jsonStr));
+    const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+    combined.set(salt); 
+    combined.set(iv, salt.length); 
+    combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+    return uint8ToBase64(combined);
 }
 
 async function decryptPacket(cipherStr, password) {
     try {
-        if(cipherStr.startsWith('{')) {
-            return JSON.parse(cipherStr);
-        }
         const bytes = base64ToUint8(cipherStr);
         const salt = bytes.slice(0, 16); 
         const iv = bytes.slice(16, 28); 
@@ -605,8 +616,7 @@ async function decryptPacket(cipherStr, password) {
         const enc = new TextEncoder();
         const keyMat = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]);
         const key = await crypto.subtle.deriveKey({name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256"}, keyMat, {name: "AES-GCM", length: 256}, false, ["decrypt"]);
-        const decrypted = await crypto.subtle.decrypt({name: "AES-GCM", iv}, key, data);
-        return JSON.parse(new TextDecoder().decode(decrypted));
+        return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: "AES-GCM", iv}, key, data)));
     } catch(e) { 
         return null; 
     }
@@ -614,7 +624,7 @@ async function decryptPacket(cipherStr, password) {
 
 // ==================== NOTIFICATIONS ====================
 function requestNotificationPermission() {
-    if('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') { 
+    if('Notification' in window) { 
         Notification.requestPermission(); 
     }
 }
@@ -622,7 +632,7 @@ function requestNotificationPermission() {
 function showNotification(title, body) {
     const toast = document.createElement('div');
     toast.className = 'notification-toast';
-    toast.innerHTML = `<i class="fas fa-bell" style="color:var(--primary); font-size:18px;"></i> <div><b style="color:var(--text-light);">${title}</b><br><small style="color:var(--text-gray);">${body}</small></div>`;
+    toast.innerHTML = `<i class="fas fa-shield-alt" style="color:var(--primary);"></i> <div><b>${title}</b><br><small style="color:var(--text-gray);">${body}</small></div>`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3500);
     
@@ -634,34 +644,59 @@ function showNotification(title, body) {
 function setupNotifications() {
     requestNotificationPermission();
     db.ref('messages').on('child_added', async snap => {
-        if(!currentChatId || snap.key !== currentChatId) {
+        if(!currentChatId || snap.ref.parent.key !== currentChatId) {
             const d = snap.val();
-            if(d) {
-                const latestKey = Object.keys(d).pop();
-                const msgData = d[latestKey];
-                if(msgData && !msgData.deleted && msgData.sender !== myName && msgData.data) {
-                    try {
-                        const packet = await decryptPacket(msgData.data, currentKey || 'PUBLIC_KEY');
-                        if(packet && packet.sender !== myName) {
-                            showNotification('💬 رسالة جديدة', `${packet.sender}: ${packet.type === 'text' ? packet.content.substring(0, 45) : '📎 مرفق'}`);
-                        }
-                    } catch(e) {}
-                }
+            if(d && !d.deleted && d.data) {
+                try {
+                    const packet = await decryptPacket(d.data, currentKey || 'PUBLIC_KEY');
+                    if(packet && packet.sender !== myName) {
+                        showNotification('💬 رسالة جديدة', `${packet.sender}: ${packet.type === 'text' ? packet.content.substring(0, 50) : '📎 مرفق'}`);
+                    }
+                } catch(e) {}
             }
         }
     });
 }
 
-// ==================== FINISH LOGIN (CENTRAL) ====================
-function finishLogin() {
-    localStorage.setItem('chatUser', myName);
-    const authScreen = document.getElementById('auth-screen');
-    const dashboard = document.getElementById('app-dashboard');
-    if(authScreen) authScreen.classList.add('hidden');
-    if(dashboard) dashboard.classList.remove('hidden');
+// ==================== FINISH LOGIN & DEPUTY ADMIN VERIFICATION ====================
+async function finishLogin() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app-dashboard').classList.remove('hidden');
     
     const nameDisplay = document.getElementById('myNameDisplay');
     if(nameDisplay) nameDisplay.innerText = myName;
+    
+    // Check if Owner Admin or Deputy Admin
+    const adminSnap = await db.ref('system/admin').once('value');
+    const adminData = adminSnap.val() || { user: 'OWNER' };
+    
+    if(myName === adminData.user) {
+        isAdmin = true;
+        isDeputyAdmin = false;
+        const adminBtn = document.getElementById('adminBtn');
+        if(adminBtn) {
+            adminBtn.classList.remove('hidden');
+            adminBtn.title = '👑 لوحة تحكم المشرف العام';
+        }
+    } else {
+        // Check Deputy Admin status
+        const deputySnap = await db.ref(`system/deputy_admins/${myName}`).once('value');
+        if(deputySnap.exists()) {
+            isDeputyAdmin = true;
+            isAdmin = false;
+            deputyPermissions = deputySnap.val().permissions || {};
+            
+            const adminBtn = document.getElementById('adminBtn');
+            if(adminBtn) {
+                adminBtn.classList.remove('hidden');
+                adminBtn.title = '🛡️ لوحة مساعد المشرف (نائب أدمن)';
+            }
+            showNotification('🛡️ صلاحيات نائب أدمن', 'تم تفعيل صلاحياتك الإدارية المحددة');
+        } else {
+            isAdmin = false;
+            isDeputyAdmin = false;
+        }
+    }
     
     loadMyProfile();
     setupRealtime();
@@ -671,13 +706,40 @@ function finishLogin() {
     loadScheduledMessages();
     loadReminders();
     loadNotes();
+    listenForGlobalBan();
     
+    // Setup presence
     db.ref('.info/connected').on('value', s => {
         if(s.val() === true) {
             db.ref(`users/${myName}/online`).onDisconnect().set(false)
               .then(() => db.ref(`users/${myName}/online`).set(true));
         }
     });
+}
+
+function listenForGlobalBan() {
+    // Real-time listener: Kick out user if banned by admin
+    db.ref(`system/banned_users/${myName}`).on('value', snap => {
+        if(snap.exists()) {
+            logoutUser('🚫 تم حظر حسابك من التطبيق بواسطة المشرف العام');
+        }
+    });
+    
+    db.ref(`system/banned_devices/${deviceId}`).on('value', snap => {
+        if(snap.exists()) {
+            logoutUser('🚫 تم حظر هذا الجهاز من استخدام التطبيق');
+        }
+    });
+}
+
+function logoutUser(alertMessage = 'تم تسجيل الخروج بنجاح') {
+    localStorage.removeItem('chatUser');
+    localStorage.removeItem('chatUserPass');
+    if(myName) {
+        db.ref(`users/${myName}/online`).set(false);
+    }
+    showNotification('🚪 تسجيل الخروج', alertMessage);
+    setTimeout(() => location.reload(), 1000);
 }
 
 function loadMyProfile() {
@@ -693,17 +755,17 @@ function loadMyProfile() {
     });
 }
 
-// ==================== REALTIME DASHBOARD SETUP ====================
+// ==================== REALTIME SETUP ====================
 function setupRealtime() {
     db.ref('system/settings').on('value', s => {
         const d = s.val() || {};
-        const ticker = document.getElementById('adminTicker');
-        const msg = document.getElementById('tickerMsg');
-        if(d.ticker && ticker && msg) {
-            ticker.classList.remove('hidden');
-            msg.innerText = d.ticker;
-        } else if(ticker) {
-            ticker.classList.add('hidden');
+        if(d.ticker) {
+            const ticker = document.getElementById('adminTicker');
+            const msg = document.getElementById('tickerMsg');
+            if(ticker && msg) {
+                ticker.classList.remove('hidden');
+                msg.innerText = d.ticker;
+            }
         }
         if(d.bg) {
             const bg = document.getElementById('globalBg');
@@ -719,22 +781,11 @@ function renderRoomsList(data) {
     const list = document.getElementById('roomsList');
     if(!list) return;
     list.innerHTML = '';
-    if(!data) {
-        list.innerHTML = '<p style="padding:20px; color:var(--text-gray); text-align:center;">لا توجد مجموعات بعد، أنشئ أول مجموعة!</p>';
-        return;
-    }
+    if(!data) return;
     Object.entries(data).sort((a,b) => (b[1].createdAt||0) - (a[1].createdAt||0)).forEach(([key, val]) => {
         const div = document.createElement('div');
         div.className = 'item-card';
-        div.innerHTML = `
-            ${val.avatar ? `<img src="${val.avatar}" class="group-avatar-sm" alt="Group">` : '<div class="group-avatar-sm">👥</div>'}
-            <div style="flex:1; overflow:hidden;">
-                <b style="font-size:14px;">${val.name}</b>
-                <div style="font-size:12px; color:var(--text-gray); margin-top:2px;">
-                    ${val.type === 'private' ? '🔒 خاصة' : '🌐 عامة'} | المنشئ: ${val.creator || 'المشرف'}
-                </div>
-            </div>
-        `;
+        div.innerHTML = `${val.avatar ? `<img src="${val.avatar}" class="group-avatar-sm">` : '<div class="group-avatar-sm">👥</div>'}<div style="flex:1;"><b>${val.name}</b><div style="font-size:12px;color:var(--text-gray);">${val.type==='private'?'🔒 خاصة':'🌐 عامة'} | المشرف: ${val.creator||''}</div></div>`;
         div.onclick = () => tryJoinRoom(key, val);
         list.appendChild(div);
     });
@@ -744,27 +795,15 @@ function renderFriendsList(friends) {
     const list = document.getElementById('usersList');
     if(!list) return;
     list.innerHTML = '';
-    if(!friends) {
-        list.innerHTML = '<p style="padding:20px; color:var(--text-gray); text-align:center;">لا يوجد أصدقاء بعد. ابحث عن مستخدمين لإضافتهم!</p>';
-        return;
-    }
+    if(!friends) return;
     Object.keys(friends).forEach(async f => {
         if(f === myName) return;
         const snap = await db.ref(`users/${f}/avatar`).once('value');
         const onlineSnap = await db.ref(`users/${f}/online`).once('value');
-        const isOnline = onlineSnap.val();
         const div = document.createElement('div');
         div.className = 'item-card';
-        div.innerHTML = `
-            ${snap.val() ? `<img src="${snap.val()}" class="group-avatar-sm" alt="User">` : '<div class="group-avatar-sm">👤</div>'}
-            <div style="flex:1;">
-                <b style="font-size:14px;">${f}</b>
-                <div style="font-size:11px; color:${isOnline ? 'var(--primary)' : 'var(--text-gray)'}; margin-top:2px;">
-                    ${isOnline ? '🟢 متصل الآن' : '⚫ غير متصل'}
-                </div>
-            </div>
-        `;
-        div.onclick = () => enterChat([myName,f].sort().join('_'), f, 'DM_' + [myName,f].sort().join('_'));
+        div.innerHTML = `${snap.val() ? `<img src="${snap.val()}" class="group-avatar-sm">` : '<div class="group-avatar-sm">👤</div>'}<div style="flex:1;"><b>${f}</b> ${onlineSnap.val() ? '🟢 متصل' : '⚫ غير متصل'}</div>`;
+        div.onclick = () => enterChat([myName,f].sort().join('_'), f, 'DM_'+[myName,f].sort().join('_'));
         list.appendChild(div);
     });
 }
@@ -781,8 +820,8 @@ function renderStories(data) {
             div.className = 'story-item';
             div.onclick = () => viewStory(key, val);
             div.innerHTML = val.imageUrl ? 
-                `<img src="${val.imageUrl}" class="story-avatar" alt="Story"><span class="story-name">${val.sender}</span>` :
-                `<div class="story-avatar" style="background:var(--story-ring);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;">📝</div><span class="story-name">${val.sender}</span>`;
+                `<img src="${val.imageUrl}" class="story-avatar"><span class="story-name">${val.sender}</span>` :
+                `<div class="story-avatar" style="background:var(--story-ring);display:flex;align-items:center;justify-content:center;">📝</div><span class="story-name">${val.sender}</span>`;
             rail.appendChild(div);
         }
     });
@@ -791,30 +830,25 @@ function renderStories(data) {
 function showAddStoryModal() {
     tempStoryImage = null;
     const prev = document.getElementById('storyImagePreview');
-    if(prev) prev.style.display = 'none';
     const txt = document.getElementById('storyText');
+    if(prev) prev.style.display = 'none';
     if(txt) txt.value = '';
     const modal = document.getElementById('addStoryModal');
     if(modal) modal.classList.remove('hidden');
 }
 
 async function addStory() {
-    const txt = document.getElementById('storyText');
-    const text = txt ? txt.value.trim() : '';
+    const input = document.getElementById('storyText');
+    const text = input ? input.value.trim() : '';
     if(!text && !tempStoryImage) { 
-        showNotification('❌ خطأ', 'الرجاء إدخال نص أو صورة للقصة'); 
+        showNotification('❌ خطأ', 'الرجاء إدخال نص أو صورة للحالة'); 
         return; 
     }
-    await db.ref('stories').push({ 
-        sender: myName, 
-        text, 
-        imageUrl: tempStoryImage || '', 
-        timestamp: Date.now() 
-    });
-    if(txt) txt.value = '';
+    await db.ref('stories').push({ sender: myName, text, imageUrl: tempStoryImage||'', timestamp: Date.now() });
+    if(input) input.value = '';
     tempStoryImage = null;
     closeModal('addStoryModal');
-    showNotification('✅ تم النشر', 'تم نشر حالتك بنجاح لمدة 24 ساعة');
+    showNotification('✅ تم النشر', 'تم نشر حالتك بنجاح');
 }
 
 function viewStory(key, data) {
@@ -824,22 +858,16 @@ function viewStory(key, data) {
     if(!viewer || !content || !progressBar) return;
     
     viewer.classList.remove('hidden');
-    const nameEl = document.getElementById('storyViewerName');
-    if(nameEl) nameEl.innerText = data.sender;
+    document.getElementById('storyViewerName').innerText = data.sender;
     progressBar.style.width = '0%';
-    
     content.innerHTML = data.imageUrl ? 
-        `<img src="${data.imageUrl}" alt="Story Image">` :
-        `<div style="background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); padding:35px; border-radius:16px; font-size:22px; font-weight:bold; color:white; text-align:center; max-width:85%; border:1px solid rgba(255,255,255,0.1);">${data.text}</div>`;
-    
+        `<img src="${data.imageUrl}" style="max-width:90%;max-height:70vh;border-radius:10px;">` :
+        `<div style="background:#333;padding:30px;border-radius:10px;font-size:18px;">${data.text}</div>`;
     let progress = 0;
     const interval = setInterval(() => {
         progress += 2;
         progressBar.style.width = progress + '%';
-        if(progress >= 100) { 
-            clearInterval(interval); 
-            closeStoryViewer(); 
-        }
+        if(progress >= 100) { clearInterval(interval); closeStoryViewer(); }
     }, 100);
     viewer.dataset.interval = interval;
 }
@@ -870,22 +898,17 @@ async function searchGlobal() {
     if(usersList) usersList.classList.add('hidden');
     if(resDiv) resDiv.classList.remove('hidden');
     
-    const snap = await db.ref('users').orderByKey().startAt(term).endAt(term + "\uf8ff").limitToFirst(10).once('value');
+    const snap = await db.ref('users').orderByKey().startAt(term).endAt(term+"\uf8ff").limitToFirst(10).once('value');
     if(resDiv) {
-        resDiv.innerHTML = '<div style="padding:10px 16px; color:var(--text-gray); font-size:13px; font-weight:bold;">🔍 نتائج البحث:</div>';
+        resDiv.innerHTML = '<div style="padding:10px;color:var(--text-gray);">🔍 نتائج البحث:</div>';
         let found = false;
         snap.forEach(child => {
             if(child.key !== myName) {
                 found = true;
-                resDiv.innerHTML += `
-                    <div class="item-card">
-                        <div class="default-avatar">👤</div>
-                        <div style="flex:1;"><b>${child.key}</b></div>
-                        <button onclick="sendFriendReq('${child.key}')" class="action-btn" style="padding:6px 12px; margin:0; width:auto; font-size:12px;">➕ طلب صداقة</button>
-                    </div>`;
+                resDiv.innerHTML += `<div class="item-card"><div class="default-avatar">👤</div><div style="flex:1;"><b>${child.key}</b></div><button onclick="sendFriendReq('${child.key}')" class="action-btn" style="padding:5px 12px;margin:0;width:auto;font-size:12px;">➕ إضافة</button></div>`;
             }
         });
-        if(!found) resDiv.innerHTML += '<div style="padding:16px; color:var(--text-gray); text-align:center;">لا توجد نتائج مطابقة</div>';
+        if(!found) resDiv.innerHTML += '<div style="padding:10px;color:var(--text-gray);">لا توجد نتائج</div>';
     }
 }
 
@@ -898,9 +921,9 @@ function openSearchBox() {
 
 function closeSearchBox() {
     const box = document.getElementById('searchBox');
-    const res = document.getElementById('searchBoxResults');
+    const results = document.getElementById('searchBoxResults');
     if(box) box.style.display = 'none';
-    if(res) res.innerHTML = '';
+    if(results) results.innerHTML = '';
 }
 
 async function searchInMessages() {
@@ -912,9 +935,9 @@ async function searchInMessages() {
         return; 
     }
     
-    const snap = await db.ref('messages/' + currentChatId).limitToLast(120).once('value');
+    const snap = await db.ref('messages/' + currentChatId).limitToLast(100).once('value');
     const msgs = snap.val() || {};
-    results.innerHTML = '<div style="color:var(--text-gray); padding:8px; font-size:12px; font-weight:bold;">🔍 الرسائل المطابقة:</div>';
+    results.innerHTML = '<div style="color:var(--text-gray); padding:10px;">🔍 نتائج البحث:</div>';
     let found = false;
     
     for(let key in msgs) {
@@ -924,7 +947,7 @@ async function searchInMessages() {
             found = true;
             const div = document.createElement('div');
             div.className = 'search-result-item';
-            div.innerHTML = `<b>${packet.sender}:</b> ${packet.content.substring(0, 80)}`;
+            div.innerHTML = `<b>${packet.sender}:</b> ${packet.content.substring(0, 100)}`;
             div.onclick = () => {
                 const msgEl = document.querySelector(`[data-key="${key}"]`);
                 if(msgEl) {
@@ -937,7 +960,7 @@ async function searchInMessages() {
             results.appendChild(div);
         }
     }
-    if(!found) results.innerHTML += '<div style="color:var(--text-gray); padding:12px; text-align:center;">لا توجد رسائل مطابقة للبحث</div>';
+    if(!found) results.innerHTML += '<div style="color:var(--text-gray); padding:10px;">لا توجد نتائج</div>';
 }
 
 function sendFriendReq(toUser) { 
@@ -954,16 +977,9 @@ function openFriendRequests() {
         if(!list) return;
         list.innerHTML = '';
         Object.keys(r).forEach(req => {
-            list.innerHTML += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
-                    <span style="font-weight:bold;">👤 ${req}</span>
-                    <div style="display:flex; gap:6px;">
-                        <button onclick="acceptReq('${req}')" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:bold; cursor:pointer;">✅ قبول</button>
-                        <button onclick="db.ref('users/${myName}/requests/${req}').remove()" style="background:var(--delete-red); color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">❌ رفض</button>
-                    </div>
-                </div>`;
+            list.innerHTML += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><span>👤 <b>${req}</b></span><div><button onclick="acceptReq('${req}')" style="background:var(--primary);color:white;border:none;padding:5px 12px;border-radius:6px;margin-left:5px;cursor:pointer;">✅ قبول</button><button onclick="db.ref('users/${myName}/requests/${req}').remove()" style="background:var(--delete-red);color:white;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;">❌ رفض</button></div></div>`;
         });
-        if(!Object.keys(r).length) list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">لا توجد طلبات صداقة معلقة</p>';
+        if(!Object.keys(r).length) list.innerHTML = '<p style="color:var(--text-gray); text-align:center;">لا توجد طلبات جديدة</p>';
     });
 }
 
@@ -974,27 +990,25 @@ async function acceptReq(user) {
     showNotification('✅ تم القبول', `أصبحت أنت و${user} أصدقاء الآن`);
 }
 
-// ==================== CHAT JOIN & ROUTING ====================
+// ==================== CHAT & JOINING ====================
 let tempJoinData = null;
 
 function tryJoinRoom(id, data) {
-    if(data.type === 'private' && !isAdmin) { 
-        tempJoinData = {id, data}; 
+    if(data.type === 'private' && !isAdmin && !isDeputyAdmin) { 
+        tempJoinData = { id, data }; 
         const modal = document.getElementById('passPromptModal');
         if(modal) modal.classList.remove('hidden'); 
-    } else {
-        enterChat(id, data.name, data.password, data.admins);
     }
+    else enterChat(id, data.name, data.password, data.admins);
 }
 
 function verifyRoomJoin() {
     const input = document.getElementById('joinRoomPass');
-    if(input && tempJoinData && input.value === tempJoinData.data.password) {
+    if(input && input.value === tempJoinData.data.password) {
         closeModal('passPromptModal');
         enterChat(tempJoinData.id, tempJoinData.data.name, tempJoinData.data.password, tempJoinData.data.admins);
-        input.value = '';
     } else {
-        showNotification('❌ خطأ', 'كلمة سر المجموعة غير صحيحة');
+        showNotification('❌ كلمة السر خاطئة', 'يرجى إدخال كلمة سر المجموعة الصحيحة');
     }
 }
 
@@ -1002,7 +1016,7 @@ function enterChat(id, title, key, admins) {
     db.ref(`system/bans/${id}/${myName}`).once('value', async snap => {
         const b = snap.val();
         if(b && (b.permanent || (b.until && Date.now() < b.until))) { 
-            showNotification('🚫 أنت محظور', 'أنت محظور من هذه المجموعة حالياً'); 
+            showNotification('🚫 محظور من المجموعة', 'أنت محظور حالياً من دخول هذه المجموعة'); 
             return; 
         }
         proceedEnterChat(id, title, key, admins);
@@ -1014,21 +1028,24 @@ function proceedEnterChat(id, title, key, admins) {
     currentKey = key; 
     currentRoomType = title;
     
-    const roomTitle = document.getElementById('currentRoomName');
-    if(roomTitle) roomTitle.innerText = title;
-    
-    const chatAvatar = document.getElementById('headerChatAvatar');
-    const chatDef = document.getElementById('headerChatDefault');
+    const rName = document.getElementById('currentRoomName');
+    const rStatus = document.getElementById('roomStatusText');
+    if(rName) rName.innerText = title;
+    if(rStatus) rStatus.innerText = '🔒 تشفير AES-256 فائق الأمان';
     
     db.ref(`rooms/${id}/avatar`).once('value', s => {
         const a = s.val();
-        if(a && chatAvatar && chatDef) {
-            chatAvatar.src = a;
-            chatAvatar.style.display = 'block';
-            chatDef.style.display = 'none';
-        } else if(chatAvatar && chatDef) {
-            chatAvatar.style.display = 'none';
-            chatDef.style.display = 'flex';
+        const avatar = document.getElementById('headerChatAvatar');
+        const def = document.getElementById('headerChatDefault');
+        if(avatar && def) {
+            if(a) {
+                avatar.src = a;
+                avatar.style.display = 'block';
+                def.style.display = 'none';
+            } else {
+                avatar.style.display = 'none';
+                def.style.display = 'flex';
+            }
         }
     });
     
@@ -1041,17 +1058,17 @@ function proceedEnterChat(id, title, key, admins) {
         const inp = document.getElementById('msgInput');
         if(inp) {
             inp.disabled = !!s.val();
-            inp.placeholder = s.val() ? '🔇 تم كتمك من قِبل المشرف...' : 'اكتب رسالة...';
+            inp.placeholder = s.val() ? '🔇 تم كتمك في هذه المجموعة...' : 'اكتب رسالة مشفرة...';
         }
     });
     
     db.ref(`typing/${id}`).on('value', s => {
         const t = s.val() || {};
         const typists = Object.keys(t).filter(k => k !== myName && t[k]);
-        const ind = document.getElementById('typingIndicator');
-        if(ind) {
-            ind.style.display = typists.length ? 'block' : 'none';
-            if(typists.length) ind.innerText = `✍️ ${typists[0]} يكتب الآن...`;
+        const indicator = document.getElementById('typingIndicator');
+        if(indicator) {
+            indicator.style.display = typists.length ? 'block' : 'none';
+            if(typists.length) indicator.innerText = `✍️ ${typists[0]} يكتب الآن...`;
         }
     });
     
@@ -1075,10 +1092,12 @@ function proceedEnterChat(id, title, key, admins) {
         }
         if(el && d.pinned) {
             el.classList.add('pinned');
-            const badge = document.createElement('span');
-            badge.className = 'pinned-badge';
-            badge.textContent = '📌 مثبت';
-            el.prepend(badge);
+            if(!el.querySelector('.pinned-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'pinned-badge';
+                badge.textContent = '📌 مثبت';
+                el.prepend(badge);
+            }
         }
     });
 }
@@ -1113,12 +1132,7 @@ async function sendText() {
     
     if(sentiment) messageObj.sentiment = sentiment;
     if(replyData) {
-        messageObj.replyTo = { 
-            key: replyData.key, 
-            sender: replyData.sender, 
-            content: replyData.content, 
-            type: replyData.type 
-        };
+        messageObj.replyTo = { key: replyData.key, sender: replyData.sender, content: replyData.content, type: replyData.type };
         cancelReply();
     }
     
@@ -1134,8 +1148,7 @@ async function sendText() {
     const sug = document.getElementById('aiSuggestions');
     if(sug) sug.style.display = 'none';
     
-    if(typeof addPoints === 'function') addPoints(2);
-    
+    // Smart Chatbot Reply trigger
     const chatbotReply = chatbotResponse(txt);
     if(chatbotReply) {
         setTimeout(() => {
@@ -1149,105 +1162,93 @@ async function sendText() {
 }
 
 function renderMessage(p, key) {
-    const container = document.getElementById('messagesContainer');
-    if(!container) return;
-    
     const div = document.createElement('div');
     const isEmojiMsg = p.type === 'text' && p.emojiOnly;
-    div.className = `msg ${p.sender === myName ? 'me' : 'other'} ${isEmojiMsg ? 'msg-emoji-only' : ''} ${p.pinned ? 'pinned' : ''} ${p.type === '3d' ? 'msg-3d' : ''}`;
+    div.className = `msg ${p.sender === myName ? 'me' : 'other'} ${isEmojiMsg ? 'msg-emoji-only' : ''} ${p.pinned ? 'pinned' : ''}`;
     div.dataset.key = key;
     div.oncontextmenu = (e) => { e.preventDefault(); showCtx(e, key, p.sender, p.content, p.type); };
     
     let html = '';
     if(p.pinned) html += '<span class="pinned-badge">📌 مثبت</span>';
-    if(p.sender !== myName && (!currentChatId || !currentChatId.startsWith('DM_'))) {
+    if(p.sender !== myName && currentChatId && !currentChatId.startsWith('DM_')) {
         html += `<span class="msg-sender">${p.sender}</span>`;
     }
     
     if(p.replyTo) {
-        html += `
-            <div class="reply-quote">
-                <div class="quote-sender">↩️ ${p.replyTo.sender}</div>
-                <div class="quote-text">${p.replyTo.type === 'image' ? '📷 صورة' : p.replyTo.type === 'voice' ? '🎤 رسالة صوتية' : (p.replyTo.content ? p.replyTo.content.substring(0, 50) : '')}</div>
-            </div>`;
+        html += `<div class="reply-quote"><div class="quote-sender">↩️ ${p.replyTo.sender}</div><div class="quote-text">${p.replyTo.type === 'image' ? '📷 صورة' : p.replyTo.type === 'voice' ? '🎤 تسجيل صوتي' : p.replyTo.content?.substring(0, 50)}</div></div>`;
     }
     
     switch(p.type) {
         case 'image':
-            html += `<img src="${p.content}" style="max-width:220px; border-radius:10px; display:block; cursor:pointer;" loading="lazy" onclick="window.open(this.src)">`;
+            html += `<img src="${p.content}" style="max-width:260px; border-radius:10px; display:block; cursor:pointer;" loading="lazy" onclick="window.open(this.src)">`;
             break;
         case 'video':
-            html += `<div class="video-msg"><video src="${p.content}" controls style="max-width:260px; border-radius:10px;"></video></div>`;
+            html += `<div class="video-msg"><video src="${p.content}" controls style="max-width:280px; border-radius:10px;"></video></div>`;
             break;
         case 'voice':
-            html += `<div class="voice-msg"><i class="fas fa-play" style="cursor:pointer; color:var(--primary); font-size:18px;" onclick="this.nextElementSibling.play()"></i><audio src="${p.content}" controls style="height:36px; width:100%;"></audio></div>`;
+            html += `<div class="voice-msg"><i class="fas fa-play" style="cursor:pointer; color:var(--primary); font-size:18px;" onclick="this.nextElementSibling.play()"></i><audio src="${p.content}" controls style="height:35px; width:100%;"></audio></div>`;
             break;
         case 'document':
             const sizeStr = p.fileSize ? (p.fileSize / 1024).toFixed(1) + ' KB' : '';
-            html += `<div class="file-msg" onclick="downloadFile('${p.content}','${p.fileName || 'file'}')"><i class="fas fa-file-alt"></i><div><div class="file-name">${p.fileName || 'مستند'}</div><div class="file-size">${sizeStr} (اضغط للتنزيل)</div></div></div>`;
+            html += `<div class="file-msg" onclick="downloadFile('${p.content}', '${p.fileName || 'file'}')"><i class="fas fa-file-pdf"></i><div><div class="file-name">${p.fileName || 'مستند'}</div><div class="file-size">${sizeStr}</div></div></div>`;
             break;
         case 'location':
             try {
                 const loc = JSON.parse(p.content);
                 html += `<div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="window.open('https://maps.google.com/?q=${loc.lat},${loc.lng}')">
-                    <i class="fas fa-map-marker-alt" style="color:#e91e63; font-size:28px;"></i>
-                    <div><div style="font-size:13px; font-weight:bold;">📍 موقع جغرافي مشترك</div><div style="font-size:11px; color:var(--text-gray);">${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</div></div>
+                    <i class="fas fa-map-marker-alt" style="color:#e91e63; font-size:26px;"></i>
+                    <div><div style="font-size:14px; font-weight:bold;">📍 موقع جغرافي مباشر</div><div style="font-size:11px; color:var(--text-gray);">${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</div></div>
                 </div>`;
             } catch(e) {
-                html += '<span>📍 موقع</span>';
+                html += '<span>📍 موقع جغرافي</span>';
             }
             break;
         case 'poll':
             html += renderPoll(p.content);
             break;
-        case 'youtube':
-            html += `<div style="max-width:260px;"><iframe width="100%" height="150" src="https://www.youtube.com/embed/${p.content}" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe></div>`;
-            break;
-        case 'spotify':
-            html += `<div style="max-width:260px;"><iframe src="https://open.spotify.com/embed/track/${p.content}" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media" style="border-radius:10px;"></iframe></div>`;
-            break;
-        case 'secret':
+        case 'game_challenge':
             try {
-                const secret = JSON.parse(p.content);
-                const isExpired = Date.now() > secret.expiresAt;
-                if(isExpired) {
-                    html += '<span style="color:var(--text-gray); font-style:italic;">🔒 هذه الرسالة السرية اختفت تلقائياً</span>';
-                } else {
-                    const remaining = Math.max(0, Math.ceil((secret.expiresAt - Date.now()) / 1000));
-                    html += `<div style="background:rgba(156,39,176,0.2); padding:8px 12px; border-radius:8px; border:1px solid #9c27b0;">
-                        <span style="font-weight:bold;">🔒 ${secret.content}</span>
-                        <div style="font-size:10px; color:#e1bee7; margin-top:4px;">⏱️ ستختفي بعد ${remaining} ثانية</div>
-                    </div>`;
-                }
+                const gData = JSON.parse(p.content);
+                html += `<div style="background:rgba(255,215,0,0.12); border:1px solid var(--admin-gold); padding:10px; border-radius:10px; text-align:center;">
+                    <div style="font-size:18px; font-weight:bold; color:var(--admin-gold); margin-bottom:4px;">🎮 ${gData.title}</div>
+                    <div style="font-size:12px; color:var(--text-light); margin-bottom:8px;">تحدي تفاعلي من <b>${p.sender}</b></div>
+                    <button onclick="joinGameChallenge('${gData.gameId}', '${gData.gameType}')" class="action-btn gold" style="margin:0; padding:6px 14px; font-size:12px; width:auto;">⚔️ قبول التحدي واللعب الآن</button>
+                </div>`;
             } catch(e) {
-                html += '<span>🔒 رسالة سرية</span>';
+                html += `<span>🎮 تحدي لعبة</span>`;
             }
             break;
-        case '3d':
-            html += `<div style="font-weight:bold; font-size:16px; text-shadow:0 0 10px var(--primary);">${p.content}</div>`;
+        case 'youtube':
+            html += `<div style="max-width:280px;"><iframe width="100%" height="160" src="https://www.youtube.com/embed/${p.content}" frameborder="0" allowfullscreen style="border-radius:10px;"></iframe></div>`;
+            break;
+        case 'spotify':
+            html += `<div style="max-width:280px;"><iframe src="https://open.spotify.com/embed/track/${p.content}" width="100%" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media" style="border-radius:10px;"></iframe></div>`;
             break;
         default:
             html += `<span>${p.content}</span>`;
     }
     
     if(p.sentiment) {
-        html += `<div style="font-size:11px; margin-top:4px; color:var(--text-gray);">${p.sentiment}</div>`;
+        html += `<div style="font-size:11px; margin-top:4px; opacity:0.8;">${p.sentiment}</div>`;
     }
     
-    html += `<span class="msg-time">${new Date(p.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>`;
+    html += `<span class="msg-time">${new Date(p.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>`;
     
     if(p.reactions) {
         html += '<div class="msg-reactions">';
         Object.entries(p.reactions).forEach(([reaction, users]) => {
             const isActive = users && users[myName];
-            html += `<span class="reaction-badge ${isActive ? 'active' : ''}" onclick="toggleReaction('${key}','${reaction}')">${reaction} ${Object.keys(users || {}).length}</span>`;
+            html += `<span class="reaction-badge ${isActive ? 'active' : ''}" onclick="toggleReaction('${key}', '${reaction}')">${reaction} ${Object.keys(users || {}).length}</span>`;
         });
         html += '</div>';
     }
     
     div.innerHTML = html;
-    container.appendChild(div);
-    div.scrollIntoView({ behavior: 'smooth' });
+    const container = document.getElementById('messagesContainer');
+    if(container) {
+        container.appendChild(div);
+        div.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 function downloadFile(base64, fileName) {
@@ -1295,51 +1296,53 @@ function addReaction(reaction) {
 // ==================== REPLY SYSTEM ====================
 function ctxReply() {
     replyData = { key: ctxMsgKey, sender: ctxSender, content: ctxContent, type: ctxMsgType };
-    const pSender = document.getElementById('replyPreviewSender');
-    const pText = document.getElementById('replyPreviewText');
-    const rBar = document.getElementById('replyBar');
+    const senderEl = document.getElementById('replyPreviewSender');
+    const textEl = document.getElementById('replyPreviewText');
+    const bar = document.getElementById('replyBar');
     const input = document.getElementById('msgInput');
     
-    if(pSender) pSender.innerText = ctxSender;
-    if(pText) pText.innerText = ctxMsgType === 'image' ? '📷 صورة' : ctxMsgType === 'voice' ? '🎤 رسالة صوتية' : (ctxContent ? ctxContent.substring(0, 50) : '');
-    if(rBar) rBar.style.display = 'flex';
+    if(senderEl) senderEl.innerText = ctxSender;
+    if(textEl) textEl.innerText = ctxMsgType === 'image' ? '📷 صورة' : ctxMsgType === 'voice' ? '🎤 تسجيل صوتي' : ctxContent?.substring(0, 50);
+    if(bar) bar.style.display = 'flex';
     if(input) input.focus();
-    
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 function cancelReply() { 
     replyData = null; 
-    const rBar = document.getElementById('replyBar');
-    if(rBar) rBar.style.display = 'none'; 
+    const bar = document.getElementById('replyBar');
+    if(bar) bar.style.display = 'none'; 
 }
 
 // ==================== CONTEXT MENU ====================
 function showCtx(e, key, sender, content, type) {
     const m = document.getElementById('contextMenu');
     if(!m) return;
+    
     ctxMsgKey = key; 
     ctxSender = sender; 
     ctxContent = content; 
     ctxMsgType = type || 'text';
     
+    const canDelete = (sender === myName) || isAdmin || (isDeputyAdmin && deputyPermissions.clearChat);
+    const canPin = isAdmin || (isDeputyAdmin && deputyPermissions.pinMessages);
+    
     const delBtn = document.getElementById('ctxDeleteBtn');
     const pinBtn = document.getElementById('ctxPinBtn');
-    
-    if(delBtn) delBtn.style.display = (sender === myName || isAdmin) ? 'flex' : 'none';
-    if(pinBtn) pinBtn.style.display = (isAdmin) ? 'flex' : 'none';
+    if(delBtn) delBtn.style.display = canDelete ? 'flex' : 'none';
+    if(pinBtn) pinBtn.style.display = canPin ? 'flex' : 'none';
     
     m.style.display = 'block';
-    m.style.left = Math.min(e.pageX, window.innerWidth - 240) + 'px';
-    m.style.top = Math.min(e.pageY, window.innerHeight - 340) + 'px';
+    m.style.left = Math.min(e.pageX, window.innerWidth - 230) + 'px';
+    m.style.top = Math.min(e.pageY, window.innerHeight - 320) + 'px';
 }
 
 document.addEventListener('click', () => {
-    const menu = document.getElementById('contextMenu');
-    const picker = document.getElementById('reactionPicker');
-    if(menu) menu.style.display = 'none';
-    if(picker) picker.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    const reac = document.getElementById('reactionPicker');
+    if(ctx) ctx.style.display = 'none';
+    if(reac) reac.style.display = 'none';
 });
 
 function ctxCopy() { 
@@ -1347,36 +1350,34 @@ function ctxCopy() {
         navigator.clipboard.writeText(ctxContent);
         showNotification('✅ تم النسخ', 'تم نسخ نص الرسالة إلى الحافظة');
     }
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 async function ctxDelete() { 
-    if(currentChatId && ctxMsgKey) {
-        await db.ref(`messages/${currentChatId}/${ctxMsgKey}`).update({ deleted: true, data: null });
-        showNotification('🗑️ تم الحذف', 'تم حذف الرسالة للجميع');
-    }
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    if(!currentChatId || !ctxMsgKey) return;
+    await db.ref(`messages/${currentChatId}/${ctxMsgKey}`).update({ deleted: true, data: null });
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
+    showNotification('🗑️ تم الحذف', 'تم حذف الرسالة للجميع');
 }
 
 function ctxPin() {
-    if(currentChatId && ctxMsgKey) {
-        db.ref(`messages/${currentChatId}/${ctxMsgKey}`).once('value', async snap => {
-            const d = snap.val();
-            if(d && d.data) {
-                const packet = await decryptPacket(d.data, currentKey);
-                if(packet) {
-                    packet.pinned = !packet.pinned;
-                    const enc = await encryptPacket(packet, currentKey);
-                    await db.ref(`messages/${currentChatId}/${ctxMsgKey}`).update({ data: enc, pinned: packet.pinned });
-                    showNotification(packet.pinned ? '📌 تم التثبيت' : '📌 تم إلغاء التثبيت', '');
-                }
+    if(!currentChatId || !ctxMsgKey) return;
+    db.ref(`messages/${currentChatId}/${ctxMsgKey}`).once('value', async snap => {
+        const d = snap.val();
+        if(d && d.data) {
+            const packet = await decryptPacket(d.data, currentKey);
+            if(packet) {
+                packet.pinned = !packet.pinned;
+                const enc = await encryptPacket(packet, currentKey);
+                await db.ref(`messages/${currentChatId}/${ctxMsgKey}`).update({ data: enc });
+                showNotification(packet.pinned ? '📌 تم التثبيت' : '📌 تم إلغاء التثبيت', 'تم تحديث حالة الرسالة المثبتة');
             }
-        });
-    }
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+        }
+    });
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 function ctxReact() {
@@ -1386,24 +1387,24 @@ function ctxReact() {
         picker.style.display = 'block';
         picker.style.left = menu.style.left;
         picker.style.top = (parseInt(menu.style.top) - 60) + 'px';
-        menu.style.display = 'none';
     }
+    if(menu) menu.style.display = 'none';
 }
 
 function ctxForward() {
     if(ctxContent) {
         navigator.clipboard.writeText(ctxContent);
-        showNotification('📤 تم النسخ للتحويل', 'يمكنك الآن لصق الرسالة في أي محادثة');
+        showNotification('📤 تم النسخ لإعادة التوجيه', 'الصق الرسالة في أي محادثة أخرى لإرسالها');
     }
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
 }
 
 function ctxSchedule() {
-    const menu = document.getElementById('contextMenu');
-    if(menu) menu.style.display = 'none';
+    const ctx = document.getElementById('contextMenu');
+    if(ctx) ctx.style.display = 'none';
     const textInp = document.getElementById('scheduleText');
-    if(textInp && ctxContent) textInp.value = ctxContent;
+    if(textInp) textInp.value = ctxContent || '';
     const modal = document.getElementById('scheduleModal');
     if(modal) modal.classList.remove('hidden');
 }
@@ -1412,13 +1413,14 @@ function ctxSchedule() {
 async function showPinnedMessages() {
     if(!currentChatId) return;
     const modal = document.getElementById('pinnedMessagesModal');
-    const list = document.getElementById('pinnedMessagesList');
     if(modal) modal.classList.remove('hidden');
-    if(list) list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">📌 جاري جلب الرسائل المثبتة...</p>';
+    const list = document.getElementById('pinnedMessagesList');
+    if(!list) return;
+    list.innerHTML = '<p style="color:var(--text-gray); text-align:center;">📌 جاري البحث عن الرسائل المثبتة...</p>';
     
     const snap = await db.ref('messages/' + currentChatId).once('value');
     const msgs = snap.val() || {};
-    if(list) list.innerHTML = '';
+    list.innerHTML = '';
     let found = false;
     
     for(let key in msgs) {
@@ -1428,70 +1430,81 @@ async function showPinnedMessages() {
             found = true;
             const div = document.createElement('div');
             div.className = 'search-result-item';
-            div.innerHTML = `<b>📌 ${packet.sender}:</b> ${packet.type === 'text' ? packet.content.substring(0, 70) : '📎 مرفق'}`;
+            div.innerHTML = `<b>${packet.sender}:</b> ${packet.type === 'text' ? packet.content.substring(0, 60) : '📎 مرفق'}`;
             div.onclick = () => {
                 const msgEl = document.querySelector(`[data-key="${key}"]`);
                 if(msgEl) {
                     msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     msgEl.style.border = '2px solid var(--admin-gold)';
-                    setTimeout(() => msgEl.style.border = '', 2000);
+                    setTimeout(() => msgEl.style.border = '', 2500);
                 }
                 closeModal('pinnedMessagesModal');
             };
-            if(list) list.appendChild(div);
+            list.appendChild(div);
         }
     }
-    if(!found && list) list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">لا توجد رسائل مثبتة في هذه المحادثة</p>';
+    if(!found) list.innerHTML = '<p style="color:var(--text-gray); text-align:center;">لا توجد رسائل مثبتة في هذه المحادثة</p>';
 }
 
 // ==================== POLL SYSTEM ====================
 function showPollCreator() {
     const modal = document.getElementById('pollModal');
     if(modal) modal.classList.remove('hidden');
-    ['pollQuestion', 'pollOption1', 'pollOption2', 'pollOption3', 'pollOption4'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.value = '';
-    });
+    const q = document.getElementById('pollQuestion');
+    const o1 = document.getElementById('pollOption1');
+    const o2 = document.getElementById('pollOption2');
+    const o3 = document.getElementById('pollOption3');
+    const o4 = document.getElementById('pollOption4');
+    if(q) q.value = '';
+    if(o1) o1.value = '';
+    if(o2) o2.value = '';
+    if(o3) o3.value = '';
+    if(o4) o4.value = '';
 }
 
 async function createPoll() {
-    const question = document.getElementById('pollQuestion')?.value.trim();
-    const opt1 = document.getElementById('pollOption1')?.value.trim();
-    const opt2 = document.getElementById('pollOption2')?.value.trim();
-    const opt3 = document.getElementById('pollOption3')?.value.trim();
-    const opt4 = document.getElementById('pollOption4')?.value.trim();
+    const qInp = document.getElementById('pollQuestion');
+    const o1Inp = document.getElementById('pollOption1');
+    const o2Inp = document.getElementById('pollOption2');
+    const o3Inp = document.getElementById('pollOption3');
+    const o4Inp = document.getElementById('pollOption4');
     
-    if(!question || !opt1 || !opt2) {
+    const question = qInp ? qInp.value.trim() : '';
+    const option1 = o1Inp ? o1Inp.value.trim() : '';
+    const option2 = o2Inp ? o2Inp.value.trim() : '';
+    const option3 = o3Inp ? o3Inp.value.trim() : '';
+    const option4 = o4Inp ? o4Inp.value.trim() : '';
+    
+    if(!question || !option1 || !option2) {
         showNotification('❌ خطأ', 'يرجى إدخال السؤال وخيارين على الأقل');
         return;
     }
     
-    const options = [opt1, opt2];
-    if(opt3) options.push(opt3);
-    if(opt4) options.push(opt4);
+    const options = [option1, option2];
+    if(option3) options.push(option3);
+    if(option4) options.push(option4);
     
     const pollData = { question, options, votes: {} };
     await sendMessage(JSON.stringify(pollData), 'poll');
     closeModal('pollModal');
-    showNotification('✅ تم النشر', 'تم نشر استطلاع الرأي بنجاح');
+    showNotification('📊 تم النشر', 'تم نشر استطلاع الرأي بنجاح');
 }
 
 function renderPoll(pollJson) {
     try {
-        const poll = typeof pollJson === 'string' ? JSON.parse(pollJson) : pollJson;
-        let html = `<div style="font-weight:bold; font-size:15px; margin-bottom:8px;">📊 ${poll.question}</div>`;
+        const poll = JSON.parse(pollJson);
+        let html = `<div style="font-weight:bold; margin-bottom:8px; font-size:15px;">📊 ${poll.question}</div>`;
         
         poll.options.forEach((option, index) => {
             const votes = poll.votes ? (poll.votes[index] || 0) : 0;
             const totalVotes = poll.votes ? Object.values(poll.votes).reduce((a,b) => a + (b || 0), 0) : 0;
             const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
             
-            html += `
-                <div class="poll-option" onclick="votePoll('${encodeURIComponent(JSON.stringify(poll))}', ${index})">
-                    <span style="font-size:13px; font-weight:bold;">${option}</span>
-                    <div class="poll-progress"><div class="poll-progress-fill" style="width:${percentage}%"></div></div>
-                    <span style="font-size:11px; color:var(--text-gray);">${votes} (${percentage}%)</span>
-                </div>`;
+            html += `<div class="poll-option" onclick="votePoll('${pollJson.replace(/'/g, "\\'")}', ${index})">
+                <span style="font-weight:bold;">${option}</span>
+                <div class="poll-progress"><div class="poll-progress-fill" style="width:${percentage}%"></div></div>
+                <span style="font-size:11px; font-weight:bold;">${votes} (${percentage}%)</span>
+            </div>`;
         });
         
         return html;
@@ -1500,38 +1513,67 @@ function renderPoll(pollJson) {
     }
 }
 
-async function votePoll(encodedPoll, optionIndex) {
+async function votePoll(pollJson, optionIndex) {
     if(!currentChatId || !ctxMsgKey) return;
-    try {
-        const poll = JSON.parse(decodeURIComponent(encodedPoll));
-        if(!poll.votes) poll.votes = {};
-        
-        if(poll.votedUsers && poll.votedUsers[myName]) {
-            showNotification('❌ تنبيه', 'لقد قمت بالتصويت بالفعل مسبقاً');
-            return;
-        }
-        
-        if(!poll.votedUsers) poll.votedUsers = {};
-        poll.votedUsers[myName] = optionIndex;
-        poll.votes[optionIndex] = (poll.votes[optionIndex] || 0) + 1;
-        
-        const ref = db.ref(`messages/${currentChatId}/${ctxMsgKey}`);
-        const snap = await ref.once('value');
-        const d = snap.val();
-        if(d && d.data) {
-            const packet = await decryptPacket(d.data, currentKey);
-            packet.content = JSON.stringify(poll);
-            const enc = await encryptPacket(packet, currentKey);
-            await ref.update({ data: enc });
-            showNotification('✅ تم التصويت', 'تم تسجيل تصويتك بنجاح');
-        }
-    } catch(e) {}
+    const poll = JSON.parse(pollJson);
+    if(!poll.votes) poll.votes = {};
+    
+    if(poll.votes[myName] !== undefined) {
+        showNotification('⚠️ تنبيه', 'لقد قمت بالتصويت مسبقاً في هذا الاستطلاع');
+        return;
+    }
+    
+    poll.votes[myName] = optionIndex;
+    if(!poll.votes[optionIndex]) poll.votes[optionIndex] = 0;
+    poll.votes[optionIndex]++;
+    
+    const ref = db.ref(`messages/${currentChatId}/${ctxMsgKey}`);
+    const snap = await ref.once('value');
+    const d = snap.val();
+    if(d && d.data) {
+        const packet = await decryptPacket(d.data, currentKey);
+        packet.content = JSON.stringify(poll);
+        const enc = await encryptPacket(packet, currentKey);
+        await ref.update({ data: enc });
+        showNotification('✅ تم التصويت', 'تم تسجيل صوتك بنجاح');
+    }
 }
 
-// ==================== BASIC GAMES ====================
+// ==================== GAMES & MULTIPLAYER CHALLENGES ====================
 function openGames() {
     const modal = document.getElementById('gamesModal');
     if(modal) modal.classList.remove('hidden');
+    const container = document.getElementById('gameContainer');
+    if(container) container.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:15px;">اختر لعبة من الأعلى للبدء أو إرسال تحدي مباشر</p>';
+}
+
+function sendGameChallenge(gameType, title) {
+    if(!currentChatId) {
+        showNotification('⚠️ تنبيه', 'يرجى فتح غرفة محادثة أو صديق أولاً لإرسال التحدي');
+        return;
+    }
+    const challengeData = {
+        gameId: 'G_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        gameType: gameType,
+        title: title,
+        challenger: myName,
+        createdAt: Date.now()
+    };
+    sendMessage(JSON.stringify(challengeData), 'game_challenge');
+    closeModal('gamesModal');
+    showNotification('⚔️ تم إرسال التحدي', `تم إرسال دعوة تحدي ${title} إلى المحادثة`);
+}
+
+function joinGameChallenge(gameId, gameType) {
+    const modal = document.getElementById('gamesModal');
+    if(modal) modal.classList.remove('hidden');
+    
+    if(gameType === 'tictactoe') startTicTacToeMultiplayer(gameId);
+    else if(gameType === 'rps') startRockPaperScissors();
+    else if(gameType === 'chess') startChess();
+    else if(gameType === 'domino') startDomino();
+    else if(gameType === 'quiz') startQuiz();
+    else startTicTacToe();
 }
 
 function startTicTacToe() {
@@ -1541,13 +1583,68 @@ function startTicTacToe() {
     
     const container = document.getElementById('gameContainer');
     if(!container) return;
-    container.innerHTML = '<h4>⭕ لعبة إكس أو (Tic-Tac-Toe)</h4><div class="game-board" style="grid-template-columns:repeat(3,64px);">';
+    container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h4>⭕ لعبة إكس أو (Tic-Tac-Toe)</h4>
+            <button onclick="sendGameChallenge('tictactoe', 'إكس أو')" class="action-btn gold" style="margin:0; width:auto; padding:4px 10px; font-size:11px;">📢 تحدي في الروم</button>
+        </div>
+        <div class="game-board" style="grid-template-columns:repeat(3,65px); gap:6px;">
+    `;
     
     for(let i = 0; i < 9; i++) {
-        container.innerHTML += `<div class="game-cell" id="ttt-${i}" onclick="makeTicTacToeMove(${i})"></div>`;
+        container.innerHTML += `<div class="game-cell" id="ttt-${i}" onclick="makeTicTacToeMove(${i})" style="width:65px; height:65px; font-size:32px;"></div>`;
     }
     
-    container.innerHTML += '</div><p id="tttStatus" style="margin-top:10px; font-weight:bold;">الدور الحالي: X</p>';
+    container.innerHTML += '</div><p id="tttStatus" style="margin-top:10px; font-weight:bold; text-align:center;">الدور: اللاعب (X)</p>';
+}
+
+function startTicTacToeMultiplayer(gameId) {
+    const container = document.getElementById('gameContainer');
+    if(!container) return;
+    container.innerHTML = `
+        <h4>⭕ تحدي إكس أو المباشر</h4>
+        <div class="game-board" style="grid-template-columns:repeat(3,65px); gap:6px;">
+            ${[0,1,2,3,4,5,6,7,8].map(i => `<div class="game-cell" id="ttt-multi-${i}" onclick="makeMultiTTTMove('${gameId}', ${i})" style="width:65px; height:65px; font-size:32px;"></div>`).join('')}
+        </div>
+        <p id="tttMultiStatus" style="margin-top:10px; font-weight:bold; text-align:center;">جاري مزامنة اللعبة المباشرة...</p>
+    `;
+    
+    db.ref(`games/${gameId}`).on('value', snap => {
+        const g = snap.val() || { board: ['', '', '', '', '', '', '', '', ''], turn: 'X' };
+        for(let i = 0; i < 9; i++) {
+            const cell = document.getElementById(`ttt-multi-${i}`);
+            if(cell) {
+                cell.textContent = g.board[i] || '';
+                cell.className = `game-cell ${g.board[i] === 'X' ? 'x' : g.board[i] === 'O' ? 'o' : ''}`;
+            }
+        }
+        const status = document.getElementById('tttMultiStatus');
+        if(status) {
+            if(g.winner) status.textContent = `🎉 الفائز: ${g.winner}!`;
+            else status.textContent = `الدور الحالي: (${g.turn})`;
+        }
+    });
+}
+
+async function makeMultiTTTMove(gameId, index) {
+    const snap = await db.ref(`games/${gameId}`).once('value');
+    const g = snap.val() || { board: ['', '', '', '', '', '', '', '', ''], turn: 'X' };
+    if(g.board[index] || g.winner) return;
+    
+    g.board[index] = g.turn;
+    
+    // Check winner
+    const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    const hasWon = winPatterns.some(p => p.every(i => g.board[i] === g.turn));
+    
+    if(hasWon) {
+        g.winner = `${myName} (${g.turn})`;
+        if(typeof addPoints === 'function') addPoints(25);
+    } else {
+        g.turn = g.turn === 'X' ? 'O' : 'X';
+    }
+    
+    await db.ref(`games/${gameId}`).set(g);
 }
 
 function makeTicTacToeMove(index) {
@@ -1564,21 +1661,21 @@ function makeTicTacToeMove(index) {
         ticTacToeActive = false;
         const status = document.getElementById('tttStatus');
         if(status) status.textContent = `🎉 فاز اللاعب ${ticTacToeTurn}!`;
-        showNotification('🎮 فوز رائع!', `فاز اللاعب ${ticTacToeTurn} في لعبة إكس أو`);
-        if(typeof addPoints === 'function') addPoints(15);
+        showNotification('🎮 فوز باللعبة!', `اللاعب (${ticTacToeTurn}) حقق الفوز`);
+        if(typeof addPoints === 'function') addPoints(10);
         return;
     }
     
     if(ticTacToeBoard.every(c => c !== '')) {
         ticTacToeActive = false;
         const status = document.getElementById('tttStatus');
-        if(status) status.textContent = '🤝 تعادل رائع بين الطرفين!';
+        if(status) status.textContent = '🤝 تعادل ممتاز بين اللاعبين!';
         return;
     }
     
     ticTacToeTurn = ticTacToeTurn === 'X' ? 'O' : 'X';
     const status = document.getElementById('tttStatus');
-    if(status) status.textContent = `الدور الحالي: ${ticTacToeTurn}`;
+    if(status) status.textContent = `الدور: اللاعب (${ticTacToeTurn})`;
 }
 
 function checkTicTacToeWinner() {
@@ -1587,7 +1684,7 @@ function checkTicTacToeWinner() {
         [0,3,6],[1,4,7],[2,5,8],
         [0,4,8],[2,4,6]
     ];
-    return winPatterns.some(p => p.every(idx => ticTacToeBoard[idx] === ticTacToeTurn));
+    return winPatterns.some(p => p.every(i => ticTacToeBoard[i] === ticTacToeTurn));
 }
 
 function startRockPaperScissors() {
@@ -1595,14 +1692,17 @@ function startRockPaperScissors() {
     const container = document.getElementById('gameContainer');
     if(!container) return;
     container.innerHTML = `
-        <h4>✊ حجر ورقة مقص التفاعلية</h4>
-        <p style="margin:10px 0;">اختر حركتك:</p>
-        <div style="display:flex; gap:20px; justify-content:center;">
-            <button onclick="playRPS('✊')" style="font-size:36px; background:none; border:none; cursor:pointer; transition:transform 0.2s;">✊</button>
-            <button onclick="playRPS('✋')" style="font-size:36px; background:none; border:none; cursor:pointer; transition:transform 0.2s;">✋</button>
-            <button onclick="playRPS('✌️')" style="font-size:36px; background:none; border:none; cursor:pointer; transition:transform 0.2s;">✌️</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h4>✊ حجر ورقة مقص</h4>
+            <button onclick="sendGameChallenge('rps', 'حجر ورقة مقص')" class="action-btn gold" style="margin:0; width:auto; padding:4px 10px; font-size:11px;">📢 تحدي في الروم</button>
         </div>
-        <p id="rpsResult" style="margin-top:14px; font-weight:bold; font-size:15px;"></p>
+        <p style="text-align:center; margin-bottom:12px;">اختر حركتك:</p>
+        <div style="display:flex; gap:18px; justify-content:center;">
+            <button onclick="playRPS('✊')" style="font-size:36px; background:rgba(255,255,255,0.08); border:none; border-radius:12px; padding:12px 18px; cursor:pointer;">✊</button>
+            <button onclick="playRPS('✋')" style="font-size:36px; background:rgba(255,255,255,0.08); border:none; border-radius:12px; padding:12px 18px; cursor:pointer;">✋</button>
+            <button onclick="playRPS('✌️')" style="font-size:36px; background:rgba(255,255,255,0.08); border:none; border-radius:12px; padding:12px 18px; cursor:pointer;">✌️</button>
+        </div>
+        <p id="rpsResult" style="margin-top:14px; text-align:center; font-weight:bold; font-size:15px;"></p>
     `;
 }
 
@@ -1619,23 +1719,25 @@ function playRPS(playerChoice) {
         (playerChoice === '✋' && computerChoice === '✊') ||
         (playerChoice === '✌️' && computerChoice === '✋')
     ) {
-        result = '🎉 فزت أنت!';
-        showNotification('🎮 فوز!', 'لقد انتصرت في جولة حجر ورقة مقص');
+        result = '🎉 فزت بالجولة!';
+        showNotification('🎮 فوز!', 'لقد فزت في جولة حجر ورقة مقص!');
         if(typeof addPoints === 'function') addPoints(10);
     } else {
         result = '😢 فاز الكمبيوتر!';
     }
     
     const resEl = document.getElementById('rpsResult');
-    if(resEl) resEl.textContent = `أنت: ${playerChoice} | الذكاء: ${computerChoice} => ${result}`;
+    if(resEl) resEl.textContent = `أنت: ${playerChoice} | المنافس: ${computerChoice} => ${result}`;
 }
 
-// ==================== SCHEDULED MESSAGES ====================
+// ==================== SCHEDULED MESSAGES & REMINDERS ====================
 function loadScheduledMessages() {
     const saved = localStorage.getItem('scheduledMessages');
     if(saved) {
-        try { scheduledMessages = JSON.parse(saved); } catch(e) {}
-        checkScheduledMessages();
+        try {
+            scheduledMessages = JSON.parse(saved);
+            checkScheduledMessages();
+        } catch(e) {}
     }
 }
 
@@ -1662,13 +1764,13 @@ function scheduleMessage() {
     const timeVal = timeInp ? timeInp.value : '';
     
     if(!text || !timeVal) {
-        showNotification('❌ خطأ', 'يرجى إدخال نص الرسالة والوقت المحدد');
+        showNotification('❌ خطأ', 'يرجى إدخال نص الرسالة ووقت الإرسال');
         return;
     }
     
     const time = new Date(timeVal).getTime();
     if(time <= Date.now()) {
-        showNotification('❌ خطأ', 'يجب أن يكون وقت الجدولة في المستقبل');
+        showNotification('❌ خطأ', 'يجب تحديد وقت في المستقبل');
         return;
     }
     
@@ -1677,12 +1779,13 @@ function scheduleMessage() {
         text,
         time,
         chatId: currentChatId,
+        key: currentKey,
         sender: myName
     };
     
     saveScheduledMessages();
     closeModal('scheduleModal');
-    showNotification('✅ تمت الجدولة', 'تمت جدولة رسالتك للإرسال في الوقت المحدد');
+    showNotification('⏰ تمت الجدولة', 'تمت جدولة رسالتك للإرسال في الوقت المحدد');
 }
 
 async function sendScheduledMessage(data) {
@@ -1693,8 +1796,7 @@ async function sendScheduledMessage(data) {
         timestamp: Date.now(),
         scheduled: true
     };
-    
-    const enc = await encryptPacket(messageObj, currentKey || 'PUBLIC_KEY');
+    const enc = await encryptPacket(messageObj, data.key || 'PUBLIC_KEY');
     await db.ref('messages/' + data.chatId).push({
         data: enc,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
@@ -1702,21 +1804,22 @@ async function sendScheduledMessage(data) {
     });
 }
 
-// ==================== REMINDERS ====================
 function loadReminders() {
     const saved = localStorage.getItem('reminders');
     if(saved) {
-        try { reminders = JSON.parse(saved); } catch(e) {}
-        checkReminders();
+        try {
+            reminders = JSON.parse(saved);
+            checkReminders();
+        } catch(e) {}
     }
 }
 
 function checkReminders() {
     const now = Date.now();
-    reminders.forEach(r => {
-        if(r.time <= now && !r.shown) {
-            showNotification('⏰ تذكير مهم', r.text);
-            r.shown = true;
+    reminders.forEach(reminder => {
+        if(reminder.time <= now && !reminder.shown) {
+            showNotification('⏰ تذكير مهم', reminder.text);
+            reminder.shown = true;
             saveReminders();
         }
     });
@@ -1734,7 +1837,7 @@ function createReminder() {
     const timeVal = timeInp ? timeInp.value : '';
     
     if(!text || !timeVal) {
-        showNotification('❌ خطأ', 'يرجى إدخال نص التذكير والموعد');
+        showNotification('❌ خطأ', 'يرجى إدخال موضوع التذكير والوقت');
         return;
     }
     
@@ -1742,10 +1845,9 @@ function createReminder() {
     reminders.push({ text, time, shown: false });
     saveReminders();
     closeModal('reminderModal');
-    showNotification('✅ تم الضبط', 'تم حفظ التذكير بنجاح');
+    showNotification('⏰ تم ضبط التذكير', 'سيتم إشعارك عند حلول الموعد');
 }
 
-// ==================== NOTES ====================
 function loadNotes() {
     const saved = localStorage.getItem('notes');
     if(saved) {
@@ -1758,27 +1860,24 @@ function saveNotes() {
 }
 
 function createNote() {
-    const textInp = document.getElementById('noteText');
-    const text = textInp ? textInp.value.trim() : '';
+    const input = document.getElementById('noteText');
+    const text = input ? input.value.trim() : '';
     if(!text) {
         showNotification('❌ خطأ', 'يرجى كتابة نص الملاحظة');
         return;
     }
-    
     notes.push({ text, timestamp: Date.now() });
     saveNotes();
     closeModal('noteModal');
-    showNotification('✅ تم الحفظ', 'تم حفظ الملاحظة اللاصقة بنجاح');
+    showNotification('📝 تم حفظ الملاحظة', 'تم تخزين الملاحظة بنجاح');
+    if(input) input.value = '';
 }
 
 // ==================== LOCATION SHARING ====================
 function shareLocation() {
     if(navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (pos) => {
-            const location = {
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude
-            };
+            const location = { lat: pos.coords.latitude, lng: pos.coords.longitude };
             const messageObj = {
                 sender: myName,
                 content: JSON.stringify(location),
@@ -1791,9 +1890,9 @@ function shareLocation() {
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 sender: myName
             });
-            showNotification('📍 تمت المشاركة', 'تم مشاركة موقعك الجغرافي');
+            showNotification('📍 تمت المشاركة', 'تمت مشاركة موقعك الجغرافي');
         }, () => {
-            showNotification('❌ خطأ', 'تعذر الوصول إلى الموقع الجغرافي');
+            showNotification('❌ خطأ', 'تعذر الوصول للموقع الجغرافي');
         });
     }
 }
@@ -1811,11 +1910,7 @@ function shareYouTube() {
 }
 
 function extractYouTubeId(url) {
-    const patterns = [
-        /youtube\.com\/watch\?v=([^&]+)/,
-        /youtu\.be\/([^?]+)/,
-        /youtube\.com\/embed\/([^?]+)/
-    ];
+    const patterns = [/youtube\.com\/watch\?v=([^&]+)/, /youtu\.be\/([^?]+)/, /youtube\.com\/embed\/([^?]+)/];
     for(let p of patterns) {
         const m = url.match(p);
         if(m) return m[1];
@@ -1937,7 +2032,9 @@ function showRoomSettings() {
         const d = s.val();
         const adminCtrl = document.getElementById('roomAdminControls');
         const notAdmin = document.getElementById('roomNotAdminMsg');
-        if(isAdmin || (d && d.admins && d.admins[myName])) {
+        const hasRights = isAdmin || (isDeputyAdmin && (deputyPermissions.banMembers || deputyPermissions.muteMembers || deputyPermissions.clearChat)) || (d && d.admins && d.admins[myName]);
+        
+        if(hasRights) {
             if(adminCtrl) adminCtrl.classList.remove('hidden');
             if(notAdmin) notAdmin.classList.add('hidden');
             loadRoomMembers(); 
@@ -2037,7 +2134,7 @@ async function tempBanMember(member) {
 }
 
 async function permaBanMember(member) {
-    if(!confirm(`⚠️ هل تريد حظر ${member} بشكل دائم؟`)) return;
+    if(!confirm(`⚠️ هل تريد حظر ${member} بشكل دائم من هذه المجموعة؟`)) return;
     await db.ref(`system/bans/${currentChatId}/${member}`).set({
         permanent: true, 
         roomName: currentRoomType, 
@@ -2096,7 +2193,7 @@ async function updateRoomPassword() {
     closeModal('roomSettingsModal');
 }
 
-// ==================== ADMIN PANEL ====================
+// ==================== ADMIN & DEPUTY ADMIN PANEL ====================
 function switchAdminTab(tab) {
     currentAdminTab = tab;
     document.querySelectorAll('#adminModal .tab').forEach(el => el.classList.remove('active'));
@@ -2104,15 +2201,21 @@ function switchAdminTab(tab) {
     
     const general = document.getElementById('adminTabGeneral');
     const users = document.getElementById('adminTabUsers');
+    const deputies = document.getElementById('adminTabDeputies');
+    const bans = document.getElementById('adminTabBans');
     const stats = document.getElementById('adminTabStats');
     const ai = document.getElementById('adminTabAI');
     
     if(general) general.classList.toggle('hidden', tab !== 'general');
     if(users) users.classList.toggle('hidden', tab !== 'users');
+    if(deputies) deputies.classList.toggle('hidden', tab !== 'deputies');
+    if(bans) bans.classList.toggle('hidden', tab !== 'bans');
     if(stats) stats.classList.toggle('hidden', tab !== 'stats');
     if(ai) ai.classList.toggle('hidden', tab !== 'ai');
     
     if(tab === 'users') loadAllUsers();
+    if(tab === 'deputies') loadDeputyAdmins();
+    if(tab === 'bans') loadGlobalBans();
     if(tab === 'stats') {
         loadStats();
         if(typeof renderActivityChart === 'function') renderActivityChart();
@@ -2123,6 +2226,19 @@ function switchAdminTab(tab) {
 async function openAdminPanel() {
     const modal = document.getElementById('adminModal');
     if(modal) modal.classList.remove('hidden');
+    
+    // Hide Owner-exclusive features if user is Deputy Admin
+    const ownerOnlySection = document.getElementById('ownerOnlySection');
+    const deputyTabBtn = document.getElementById('tabAdminDeputiesBtn');
+    
+    if(isDeputyAdmin && !isAdmin) {
+        if(ownerOnlySection) ownerOnlySection.classList.add('hidden');
+        if(deputyTabBtn) deputyTabBtn.classList.add('hidden');
+    } else {
+        if(ownerOnlySection) ownerOnlySection.classList.remove('hidden');
+        if(deputyTabBtn) deputyTabBtn.classList.remove('hidden');
+    }
+    
     loadAllUsers();
     loadStats();
 }
@@ -2134,9 +2250,10 @@ async function loadAllUsers() {
     if(uList) {
         uList.innerHTML = Object.keys(users).map(u => 
             `<div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
-                <span>👤 <b>${u}</b> ${users[u].online ? '🟢' : '⚫'}</span>
-                <div>
-                    <button onclick="deleteUser('${u}')" style="background:var(--delete-red); color:white; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px;">🗑️ حذف</button>
+                <span>👤 <b>${u}</b> ${users[u].online ? '🟢 متصل' : '⚫ غير متصل'}</span>
+                <div style="display:flex; gap:4px;">
+                    <button onclick="banUserGlobally('${u}')" style="background:var(--warning-orange); color:#000; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;">🚫 حظر عام</button>
+                    ${isAdmin ? `<button onclick="deleteUser('${u}')" style="background:var(--delete-red); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">🗑️ حذف</button>` : ''}
                 </div>
             </div>`).join('');
     }
@@ -2148,9 +2265,159 @@ async function loadAllUsers() {
         rList.innerHTML = Object.entries(rooms).map(([k,v]) => 
             `<div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
                 <span>👥 <b>${v.name}</b> (${v.type}) - ${v.creator}</span>
-                <button onclick="deleteRoom('${k}')" style="background:var(--delete-red); color:white; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px;">🗑️ حذف</button>
+                ${isAdmin ? `<button onclick="deleteRoom('${k}')" style="background:var(--delete-red); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">🗑️ حذف</button>` : ''}
             </div>`).join('');
     }
+}
+
+// ==================== DEPUTY ADMIN / ASSISTANT ADMIN ENGINE ====================
+async function loadDeputyAdmins() {
+    const list = document.getElementById('deputiesList');
+    const select = document.getElementById('newDeputyUserSelect');
+    if(!list) return;
+    
+    const depSnap = await db.ref('system/deputy_admins').once('value');
+    const deputies = depSnap.val() || {};
+    
+    const usersSnap = await db.ref('users').once('value');
+    const users = usersSnap.val() || {};
+    
+    // Fill User Select
+    if(select) {
+        select.innerHTML = '<option value="">-- اختر مستخدماً لتعيينه نائباً --</option>' + 
+            Object.keys(users).filter(u => u !== 'OWNER' && !deputies[u]).map(u => `<option value="${u}">👤 ${u}</option>`).join('');
+    }
+    
+    const entries = Object.entries(deputies);
+    if(entries.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:10px;">لا يوجد نواب مشرفين معينين حالياً</p>';
+        return;
+    }
+    
+    list.innerHTML = entries.map(([username, data]) => {
+        const perms = data.permissions || {};
+        const permTags = [];
+        if(perms.muteMembers) permTags.push('🔇 كتم');
+        if(perms.banMembers) permTags.push('🚫 حظر');
+        if(perms.pinMessages) permTags.push('📌 تثبيت');
+        if(perms.clearChat) permTags.push('🧹 تنظيف');
+        if(perms.approveRegistrations) permTags.push('👥 قبول طلبات');
+        if(perms.postAnnouncements) permTags.push('📢 إعلانات');
+        if(perms.viewStats) permTags.push('📊 إحصائيات');
+        
+        return `
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); padding:12px; border-radius:10px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:bold; color:var(--admin-gold); font-size:14px;">👑 نائب أدمن: ${username}</span>
+                    <button onclick="removeDeputyAdmin('${username}')" style="background:var(--delete-red); color:white; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">❌ سحب الصلاحيات</button>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:8px;">
+                    ${permTags.map(t => `<span class="badge" style="background:rgba(0,168,132,0.2); color:var(--primary);">${t}</span>`).join('') || '<span style="font-size:11px; color:var(--text-gray);">بدون صلاحيات إضافية</span>'}
+                </div>
+            </div>`;
+    }).join('');
+}
+
+async function addDeputyAdmin() {
+    if(!isAdmin) {
+        showNotification('❌ غير مصرح', 'فقط المشرف العام يمكنه تعيين النواب وتعديل صلاحياتهم');
+        return;
+    }
+    const select = document.getElementById('newDeputyUserSelect');
+    const user = select ? select.value : '';
+    if(!user) {
+        showNotification('❌ خطأ', 'يرجى اختيار مستخدم من القائمة');
+        return;
+    }
+    
+    const permissions = {
+        muteMembers: document.getElementById('permMute')?.checked || false,
+        banMembers: document.getElementById('permBan')?.checked || false,
+        pinMessages: document.getElementById('permPin')?.checked || false,
+        clearChat: document.getElementById('permClear')?.checked || false,
+        approveRegistrations: document.getElementById('permApprove')?.checked || false,
+        postAnnouncements: document.getElementById('permAnnounce')?.checked || false,
+        viewStats: document.getElementById('permStats')?.checked || false
+    };
+    
+    await db.ref(`system/deputy_admins/${user}`).set({
+        assignedBy: myName,
+        assignedAt: Date.now(),
+        permissions: permissions
+    });
+    
+    showNotification('👑 تم تعيين النائب', `تم تعيين ${user} كمساعد أدمن مع الصلاحيات المحددة`);
+    loadDeputyAdmins();
+}
+
+async function removeDeputyAdmin(username) {
+    if(!isAdmin) {
+        showNotification('❌ غير مصرح', 'فقط المشرف العام يمكنه سحب صلاحيات النواب');
+        return;
+    }
+    if(!confirm(`⚠️ سحب صلاحيات الإدارة والنائب من ${username}؟`)) return;
+    await db.ref(`system/deputy_admins/${username}`).remove();
+    showNotification('✅ تم سحب الصلاحيات', `تمت استعادة الصلاحيات العادية للمستخدم ${username}`);
+    loadDeputyAdmins();
+}
+
+// ==================== GLOBAL BAN & KICK SYSTEM ====================
+async function banUserGlobally(username) {
+    if(!confirm(`🚫 هل أنت متأكد من حظر المستخدم ${username} طرده من التطبيق بالكامل؟`)) return;
+    await db.ref(`system/banned_users/${username}`).set({
+        bannedBy: myName,
+        bannedAt: Date.now()
+    });
+    
+    // Also fetch and ban their device and IP
+    const userSnap = await db.ref(`users/${username}`).once('value');
+    if(userSnap.exists()) {
+        const u = userSnap.val();
+        if(u.deviceId) await db.ref(`system/banned_devices/${u.deviceId}`).set(username);
+        if(u.fingerprintHash) await db.ref(`system/banned_devices/${u.fingerprintHash}`).set(username);
+        if(u.lastIp) {
+            const safeIp = (u.lastIp || '').replace(/[.#$\[\]\/]/g, '_');
+            await db.ref(`system/banned_ips/${safeIp}`).set(username);
+        }
+    }
+    
+    showNotification('🚫 تم الحظر العام', `تم حظر ${username} وطرده من التطبيق`);
+    loadAllUsers();
+    loadGlobalBans();
+}
+
+async function unbanUserGlobally(username) {
+    await db.ref(`system/banned_users/${username}`).remove();
+    const userSnap = await db.ref(`users/${username}`).once('value');
+    if(userSnap.exists()) {
+        const u = userSnap.val();
+        if(u.deviceId) await db.ref(`system/banned_devices/${u.deviceId}`).remove();
+        if(u.fingerprintHash) await db.ref(`system/banned_devices/${u.fingerprintHash}`).remove();
+        if(u.lastIp) {
+            const safeIp = (u.lastIp || '').replace(/[.#$\[\]\/]/g, '_');
+            await db.ref(`system/banned_ips/${safeIp}`).remove();
+        }
+    }
+    showNotification('✅ تم فك الحظر', `تم فك الحظر عن ${username} والسماح له بالدخول`);
+    loadGlobalBans();
+}
+
+async function loadGlobalBans() {
+    const list = document.getElementById('globalBansList');
+    if(!list) return;
+    const snap = await db.ref('system/banned_users').once('value');
+    const bans = snap.val() || {};
+    const entries = Object.entries(bans);
+    if(entries.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-gray); text-align:center; padding:10px;">لا يوجد مستخدمون محظورون عاماً</p>';
+        return;
+    }
+    list.innerHTML = entries.map(([u, d]) => `
+        <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center;">
+            <span>🚫 <b>${u}</b> (محظور)</span>
+            <button onclick="unbanUserGlobally('${u}')" style="background:var(--primary); color:white; border:none; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px;">✅ فك الحظر والسماح</button>
+        </div>
+    `).join('');
 }
 
 async function loadStats() {
@@ -2185,6 +2452,7 @@ async function loadStats() {
 }
 
 async function deleteUser(user) {
+    if(!isAdmin) return;
     if(!confirm(`⚠️ هل أنت متأكد من حذف المستخدم ${user}؟`)) return;
     await db.ref(`users/${user}`).remove();
     loadAllUsers();
@@ -2192,6 +2460,7 @@ async function deleteUser(user) {
 }
 
 async function deleteRoom(roomId) {
+    if(!isAdmin) return;
     if(!confirm('⚠️ هل أنت متأكد من حذف هذه المجموعة؟')) return;
     await db.ref(`rooms/${roomId}`).remove();
     await db.ref(`messages/${roomId}`).remove();
@@ -2214,6 +2483,7 @@ async function updateGlobalBgFromFile() {
 }
 
 async function updateAdminCreds() {
+    if(!isAdmin) return;
     const userInp = document.getElementById('adminNewUser');
     const passInp = document.getElementById('adminNewPass');
     const u = userInp ? userInp.value.trim() : '';
@@ -2237,6 +2507,7 @@ async function updateTicker() {
 }
 
 function backupData() {
+    if(!isAdmin) return;
     db.ref('/').once('value', s => {
         const a = document.createElement('a');
         a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(s.val()));
@@ -2247,6 +2518,7 @@ function backupData() {
 }
 
 async function deleteAllData() {
+    if(!isAdmin) return;
     if(!confirm('⚠️⚠️ تحذير فائق الخطورة: هل أنت متأكد من حذف كافة البيانات؟')) return;
     if(!confirm('⚠️ تأكيد نهائي: سيتم محو المستخدمين والرسائل والغرف بشكل لا رجعة فيه!')) return;
     
@@ -2372,9 +2644,9 @@ async function createRoom() {
     showNotification('✅ تم الإنشاء', `تم إنشاء مجموعة ${name} بنجاح`);
 }
 
-// ==================== APP INITIALIZATION ====================
+// ==================== APP INITIALIZATION WITH AUTO-LOGIN RESTORE ====================
 async function init() {
-    // Check & Create OWNER account if not present (Never delete old data)
+    // 1. Check & Create OWNER account if not present (Never delete old data)
     try {
         const adminSnap = await db.ref('system/admin').once('value');
         if(!adminSnap.exists()) {
@@ -2392,19 +2664,35 @@ async function init() {
         if(loading) loading.style.display = 'none';
     }, 1200);
     
+    // 2. Auto-restore session from localStorage if present
     const savedUser = localStorage.getItem('chatUser');
+    const savedPass = localStorage.getItem('chatUserPass');
+    
     if(savedUser) {
         myName = savedUser;
-        try {
-            const adminData = await db.ref('system/admin').once('value');
-            if(adminData.val() && savedUser === adminData.val().user) {
-                isAdmin = true;
-                const adminBtn = document.getElementById('adminBtn');
-                if(adminBtn) adminBtn.classList.remove('hidden');
-            }
-        } catch(e) {}
         const userInp = document.getElementById('usernameInput');
+        const passInp = document.getElementById('passwordInput');
         if(userInp) userInp.value = savedUser;
+        if(passInp && savedPass) passInp.value = savedPass;
+        
+        // Auto-login if regular user or owner session saved
+        if(savedPass) {
+            try {
+                const userSnap = await db.ref(`users/${savedUser}`).once('value');
+                const adminSnap = await db.ref('system/admin').once('value');
+                const adminData = adminSnap.val() || { user: 'OWNER' };
+                
+                if(savedUser === adminData.user) {
+                    // Owner auto-reconnect
+                    isAdmin = true;
+                    finishLogin();
+                } else if(userSnap.exists()) {
+                    finishLogin();
+                }
+            } catch(e) {
+                console.log('Session auto-restore error', e);
+            }
+        }
     }
 }
 

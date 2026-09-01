@@ -36,7 +36,7 @@
     <!-- LOADING SCREEN -->
     <div class="loading-screen" id="loadingScreen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">🛡️ Chat Secure V6 - جاري التحميل...</div>
+        <div class="loading-text">🛡️ Chat Secure V6 - جاري التحميل والاتصال الآمن...</div>
     </div>
 
     <!-- ADMIN TICKER -->
@@ -50,7 +50,7 @@
         <div class="auth-card">
             <div style="font-size: 54px; margin-bottom: 8px; animation: float 3s ease infinite;">🛡️</div>
             <h2 style="margin:0 0 4px; font-size: 26px; font-weight: 900; color: white;">Chat Secure V6</h2>
-            <p style="color: var(--primary); margin-bottom: 18px; font-size: 13px; font-weight: bold;">نظام المحادثة المشفر فائق الأمان</p>
+            <p style="color: var(--primary); margin-bottom: 18px; font-size: 13px; font-weight: bold;">نظام المحادثة المشفر فائق الأمان والذكاء</p>
             
             <div class="auth-tabs">
                 <div class="auth-tab active" id="tabLoginBtn" onclick="switchAuthTab('login')">🚪 تسجيل الدخول</div>
@@ -84,7 +84,7 @@
 
             <div style="margin-top: 16px; font-size: 11px; color: var(--text-gray); display:flex; justify-content:center; gap:12px;">
                 <span><i class="fas fa-lock"></i> تشفير AES-256</span>
-                <span><i class="fas fa-fingerprint"></i> بصمة الجهاز</span>
+                <span><i class="fas fa-mobile-alt"></i> حساب واحد لكل جهاز</span>
                 <span><i class="fab fa-telegram"></i> حماية تيليجرام</span>
             </div>
         </div>
@@ -114,6 +114,7 @@
                     <button class="icon-btn" onclick="showCreateRoom()" title="إنشاء مجموعة"><i class="fas fa-users-medical"></i></button>
                     <button class="icon-btn" onclick="openGames()" title="الألعاب والمسابقات"><i class="fas fa-gamepad"></i></button>
                     <button class="icon-btn" onclick="openThemeEditor()" title="التخصيص"><i class="fas fa-palette"></i></button>
+                    <button class="icon-btn" onclick="logoutUser()" title="تسجيل الخروج" style="color:var(--delete-red);"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
 
@@ -126,21 +127,21 @@
             </div>
             
             <!-- SEARCH BAR -->
-            <div style="padding:10px 14px;">
-                <input type="text" id="searchInput" placeholder="🔍 بحث سريع في المحادثات والأصدقاء..." onkeyup="searchGlobal()" 
-                       style="border-radius:20px; padding:10px 16px; font-size: 13px;">
+            <div style="padding: 10px 14px; display: flex; gap: 8px;">
+                <input type="text" id="searchInput" placeholder="🔍 ابحث عن مستخدمين وغرف..." onkeyup="searchGlobal()" 
+                       style="background: rgba(32, 44, 51, 0.8); border-radius: 20px; padding: 10px 16px; font-size: 13px;">
             </div>
 
             <!-- TABS -->
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('rooms')" id="tab-rooms">👥 المجموعات</div>
-                <div class="tab" onclick="switchTab('users')" id="tab-users">👤 الأصدقاء</div>
+                <div class="tab active" onclick="switchTab('rooms')" id="tab-rooms"><i class="fas fa-users"></i> المجموعات</div>
+                <div class="tab" onclick="switchTab('users')" id="tab-users"><i class="fas fa-user-friends"></i> الأصدقاء</div>
             </div>
 
-            <!-- LISTS -->
+            <!-- LIST CONTAINERS -->
             <div id="roomsList" class="list-container"></div>
             <div id="usersList" class="list-container hidden"></div>
-            <div id="searchResults" class="list-container hidden" style="background:#111b21;"></div>
+            <div id="searchResults" class="list-container hidden" style="background: rgba(17, 27, 33, 0.95);"></div>
         </div>
 
         <!-- CHAT AREA -->
@@ -149,15 +150,15 @@
                 <button class="icon-btn" onclick="closeChatMobile()" title="رجوع"><i class="fas fa-arrow-right"></i></button>
                 <img id="headerChatAvatar" src="" class="avatar-img" style="display:none; width:38px; height:38px;" alt="Chat Avatar">
                 <div id="headerChatDefault" class="default-avatar" style="width:38px; height:38px;">👥</div>
-                <div style="flex:1; overflow:hidden;">
-                    <div id="currentRoomName" style="font-weight: bold; font-size: 15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
-                    <small style="color:var(--text-gray); font-size:11px;" id="roomStatusText">🔒 مشفر E2E بالكامل</small>
+                <div style="flex:1; margin-right:8px;">
+                    <div id="currentRoomName" style="font-weight: bold; font-size: 16px;"></div>
+                    <small style="color:var(--primary); font-size:11px;" id="roomStatusText">مشفر AES-256 E2E 🔒</small>
                 </div>
                 <button class="icon-btn" onclick="toggleTranslation()" title="ترجمة فورية"><i class="fas fa-language"></i></button>
-                <button class="icon-btn" onclick="openSearchBox()" title="بحث في الرسائل"><i class="fas fa-search"></i></button>
+                <button class="icon-btn" onclick="openSearchBox()" title="بحث في المحادثة"><i class="fas fa-search"></i></button>
                 <button class="icon-btn" onclick="showPinnedMessages()" title="الرسائل المثبتة"><i class="fas fa-thumbtack"></i></button>
                 <button class="icon-btn" onclick="showPollCreator()" title="استطلاع رأي"><i class="fas fa-poll"></i></button>
-                <button class="icon-btn" onclick="showRoomQRCode()" title="رمز QR"><i class="fas fa-qrcode"></i></button>
+                <button class="icon-btn" onclick="openGames()" title="تحدي لعبة"><i class="fas fa-gamepad"></i></button>
                 <button class="icon-btn" onclick="showRoomSettings()" title="إعدادات المجموعة"><i class="fas fa-cog"></i></button>
             </div>
             
@@ -166,7 +167,7 @@
 
             <!-- TRANSLATION BAR -->
             <div class="translation-bar hidden" id="translationBar">
-                <span style="font-size:12px; color:var(--text-gray); font-weight:bold;">🌐 ترجمة إلى:</span>
+                <span style="font-size:12px; color:var(--text-gray);"><i class="fas fa-globe"></i> ترجمة فورية إلى:</span>
                 <select id="translationLanguage" onchange="translateMessages()">
                     <option value="ar">العربية (Arabic)</option>
                     <option value="en">English (الإنجليزية)</option>
@@ -186,7 +187,7 @@
                 </select>
             </div>
             
-            <!-- REPLY BAR -->
+            <!-- REPLY PREVIEW BAR -->
             <div class="reply-bar" id="replyBar" style="display:none; background: rgba(32,44,51,0.85); padding: 8px 16px; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06);">
                 <div class="reply-info" style="flex:1; overflow:hidden;">
                     <div class="reply-preview-sender" id="replyPreviewSender" style="color: var(--primary); font-size: 12px; font-weight: bold;"></div>
@@ -196,27 +197,27 @@
             </div>
             
             <!-- TYPING INDICATOR -->
-            <div class="typing-indicator" id="typingIndicator" style="font-size:12px; color:var(--primary); padding:4px 16px; display:none; font-style:italic;">✍️ شخص ما يكتب...</div>
+            <div class="typing-indicator" id="typingIndicator" style="font-size:12px; color:var(--primary); padding:6px 18px; display:none; font-style:italic;">✍️ شخص ما يكتب الآن...</div>
             
             <!-- MESSAGES CONTAINER -->
-            <div id="messagesContainer" class="messages-container" onscroll="saveConversationPosition()"></div>
+            <div id="messagesContainer" class="messages-container"></div>
             
             <!-- INPUT AREA -->
             <div class="input-area">
-                <button class="icon-btn" onclick="toggleAttachMenu()" title="إرفاق ملفات"><i class="fas fa-paperclip"></i></button>
+                <button class="icon-btn" onclick="toggleAttachMenu()" title="إرفاق ملفات"><i class="fas fa-plus-circle"></i></button>
                 <button class="icon-btn" onclick="toggleEmojiPicker()" title="إيموجي">😊</button>
-                <input type="text" id="msgInput" placeholder="اكتب رسالة..." oninput="emitTyping(); showAISuggestions();" 
+                <input type="text" id="msgInput" placeholder="اكتب رسالة مشفرة..." oninput="emitTyping(); showAISuggestions();" 
                        onkeypress="if(event.key==='Enter') sendText()">
                 <button class="icon-btn" id="voiceBtn" onmousedown="startRecording()" onmouseup="stopRecording()" 
                         onmouseleave="stopRecording()" ontouchstart="startRecording()" ontouchend="stopRecording()"
                         title="تسجيل صوتي">
                     <i class="fas fa-microphone"></i>
                 </button>
-                <span class="recording-indicator" id="recordingIndicator" style="display:none; align-items:center; gap:8px; color:var(--delete-red); font-size:13px; font-weight:bold;">
+                <span class="recording-indicator" id="recordingIndicator" style="display:none; align-items:center; gap:8px; color:var(--delete-red); font-size:13px;">
                     <span style="width:10px; height:10px; border-radius:50%; background:var(--delete-red); animation:pulse 1s infinite;"></span>
                     جاري التسجيل...
                 </span>
-                <button class="icon-btn" onclick="sendText()" style="color:var(--primary);" title="إرسال">
+                <button class="icon-btn" onclick="sendText()" style="color:var(--primary); font-size:22px;" title="إرسال">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -229,54 +230,51 @@
     <!-- ATTACH MENU -->
     <div class="attach-menu" id="attachMenu">
         <div class="attach-item" onclick="document.getElementById('imageInput').click(); toggleAttachMenu();">
-            <i class="fas fa-image" style="color:#4caf50; font-size:20px;"></i> <span>📷 صورة</span>
+            <i class="fas fa-image" style="color:#4caf50;"></i> <span>📷 صورة</span>
         </div>
         <div class="attach-item" onclick="document.getElementById('videoInput').click(); toggleAttachMenu();">
-            <i class="fas fa-video" style="color:#2196f3; font-size:20px;"></i> <span>🎬 فيديو</span>
+            <i class="fas fa-video" style="color:#2196f3;"></i> <span>🎬 فيديو</span>
         </div>
         <div class="attach-item" onclick="document.getElementById('docInput').click(); toggleAttachMenu();">
-            <i class="fas fa-file-pdf" style="color:#f44336; font-size:20px;"></i> <span>📄 مستند</span>
-        </div>
-        <div class="attach-item" onclick="toggleAttachMenu(); startSpeechToText();">
-            <i class="fas fa-microphone-alt" style="color:#ff9800; font-size:20px;"></i> <span>🎤 تحويل الصوت لنص</span>
+            <i class="fas fa-file-pdf" style="color:#f44336;"></i> <span>📄 مستند أو ملف</span>
         </div>
         <div class="attach-item" onclick="toggleAttachMenu(); shareLocation();">
-            <i class="fas fa-map-marker-alt" style="color:#e91e63; font-size:20px;"></i> <span>📍 مشاركة موقع</span>
+            <i class="fas fa-map-marker-alt" style="color:#e91e63;"></i> <span>📍 موقع جغرافي</span>
         </div>
         <div class="attach-item" onclick="toggleAttachMenu(); shareYouTube();">
-            <i class="fab fa-youtube" style="color:#ff0000; font-size:20px;"></i> <span>📺 فيديو يوتيوب</span>
+            <i class="fab fa-youtube" style="color:#ff0000;"></i> <span>📺 فيديو يوتيوب</span>
         </div>
         <div class="attach-item" onclick="toggleAttachMenu(); shareSpotify();">
-            <i class="fab fa-spotify" style="color:#1db954; font-size:20px;"></i> <span>🎵 مسار Spotify</span>
+            <i class="fab fa-spotify" style="color:#1db954;"></i> <span>🎵 مسار Spotify</span>
         </div>
-        <div class="attach-item" onclick="toggleAttachMenu(); sendSecretMessage();">
-            <i class="fas fa-user-secret" style="color:#9c27b0; font-size:20px;"></i> <span>🔒 رسالة سرية ذاتية الاختفاء</span>
+        <div class="attach-item" onclick="toggleAttachMenu(); startSpeechToText();">
+            <i class="fas fa-microphone-alt" style="color:#9c27b0;"></i> <span>🎤 تحويل الصوت لنص</span>
         </div>
-        <div class="attach-item" onclick="toggleAttachMenu(); send3DMessage();">
-            <i class="fas fa-cube" style="color:#00bcd4; font-size:20px;"></i> <span>🧊 رسالة ثلاثية الأبعاد 3D</span>
+        <div class="attach-item" onclick="toggleAttachMenu(); showRoomQRCode();">
+            <i class="fas fa-qrcode" style="color:#00bcd4;"></i> <span>🔗 رمز QR للمحادثة</span>
         </div>
     </div>
     
     <input type="file" id="imageInput" hidden accept="image/*" onchange="sendImage(this)">
     <input type="file" id="videoInput" hidden accept="video/*" onchange="sendVideo(this)">
-    <input type="file" id="docInput" hidden accept=".pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip,.rar" onchange="sendDocument(this)">
+    <input type="file" id="docInput" hidden accept=".pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip,.rar,.tar,.gz" onchange="sendDocument(this)">
 
     <!-- CONTEXT MENU -->
     <div id="contextMenu" class="context-menu">
-        <div class="ctx-item" onclick="ctxReply()"><i class="fas fa-reply"></i> ↩️ رد</div>
-        <div class="ctx-item" onclick="ctxCopy()"><i class="fas fa-copy"></i> 📋 نسخ</div>
+        <div class="ctx-item" onclick="ctxReply()"><i class="fas fa-reply"></i> ↩️ رد على الرسالة</div>
+        <div class="ctx-item" onclick="ctxCopy()"><i class="fas fa-copy"></i> 📋 نسخ النص</div>
         <div class="ctx-item" onclick="ctxForward()"><i class="fas fa-share"></i> 📤 إعادة توجيه</div>
-        <div class="ctx-item" onclick="ctxPin()" id="ctxPinBtn"><i class="fas fa-thumbtack"></i> 📌 تثبيت للجميع</div>
-        <div class="ctx-item" onclick="ctxReact()"><i class="fas fa-smile"></i> 😊 تفاعل سريع</div>
-        <div class="ctx-item" onclick="ctxTranslate()"><i class="fas fa-language"></i> 🌐 ترجمة الرسالة</div>
-        <div class="ctx-item" onclick="ctxSummarize()"><i class="fas fa-file-alt"></i> 📝 تلخيص بالذكاء</div>
+        <div class="ctx-item" onclick="ctxPin()" id="ctxPinBtn"><i class="fas fa-thumbtack"></i> 📌 تثبيت / إلغاء تثبيت</div>
+        <div class="ctx-item" onclick="ctxReact()"><i class="fas fa-smile"></i> 😊 تفاعل بإيموجي</div>
+        <div class="ctx-item" onclick="ctxTranslate()"><i class="fas fa-language"></i> 🌐 ترجمة فورية</div>
+        <div class="ctx-item" onclick="ctxSummarize()"><i class="fas fa-file-alt"></i> 📝 تلخيص ذكي</div>
         <div class="ctx-item" onclick="ctxSchedule()"><i class="fas fa-clock"></i> ⏰ جدولة الرسالة</div>
         <div class="ctx-item danger" id="ctxDeleteBtn" onclick="ctxDelete()"><i class="fas fa-trash"></i> 🗑️ حذف للجميع</div>
     </div>
 
     <!-- REACTION PICKER -->
     <div id="reactionPicker" class="context-menu" style="display:none; min-width:auto; padding: 10px;">
-        <div style="display:flex; gap: 12px; font-size: 26px; cursor: pointer;">
+        <div style="display:flex; gap: 10px; font-size: 24px; cursor: pointer;">
             <span onclick="addReaction('👍')">👍</span>
             <span onclick="addReaction('❤️')">❤️</span>
             <span onclick="addReaction('😂')">😂</span>
@@ -288,12 +286,12 @@
         </div>
     </div>
 
-    <!-- ADVANCED SEARCH MODAL -->
+    <!-- SEARCH BOX -->
     <div class="search-box" id="searchBox">
-        <h3 style="margin:0 0 12px;"><i class="fas fa-search"></i> 🔍 بحث متقدم في الرسائل</h3>
-        <input type="text" id="searchBoxInput" placeholder="اكتب للبحث في الرسائل الحالية..." oninput="searchInMessages()">
+        <h3 style="margin:0 0 10px;">🔍 بحث متقدم في الرسائل والمحادثات</h3>
+        <input type="text" id="searchBoxInput" placeholder="اكتب الكلمة للبحث..." oninput="searchInMessages()">
         <div class="search-results" id="searchBoxResults"></div>
-        <button onclick="closeSearchBox()" class="action-btn" style="background:#333; margin-top:12px;">إغلاق</button>
+        <button onclick="closeSearchBox()" class="action-btn" style="background:#333; margin-top:10px;">إغلاق</button>
     </div>
 
     <!-- THEME EDITOR MODAL -->
@@ -301,12 +299,12 @@
         <div class="modal-content">
             <h3>🎨 محرر التخصيص والمظهر</h3>
             
-            <h4 style="text-align:right; margin-top:14px;">اختر الخط (19 خط عربي):</h4>
+            <h4 style="text-align:right;">اختر الخط العربي (19 خط مدعوم):</h4>
             <select id="fontSelector" onchange="changeFont(this.value)">
                 <option value="'Cairo', sans-serif">Cairo - القاهرة</option>
-                <option value="'Amiri', serif">Amiri - أميري</option>
                 <option value="'Almarai', sans-serif">Almarai - المراعي</option>
                 <option value="'Tajawal', sans-serif">Tajawal - تجوال</option>
+                <option value="'Amiri', serif">Amiri - أميري</option>
                 <option value="'Changa', sans-serif">Changa - تشانغا</option>
                 <option value="'El Messiri', sans-serif">El Messiri - المسيري</option>
                 <option value="'Harmattan', sans-serif">Harmattan - هرمان</option>
@@ -321,32 +319,30 @@
                 <option value="'Reem Kufi', sans-serif">Reem Kufi - ريم كوفي</option>
                 <option value="'Scheherazade New', serif">Scheherazade - شهرزاد</option>
                 <option value="'Vibes', cursive">Vibes - فايبز</option>
-                <option value="'Zilla Slab', serif">Zilla Slab - زيلا سلاب</option>
+                <option value="'Zilla Slab', serif">Zilla Slab - زيلا</option>
             </select>
             
-            <h4 style="text-align:right; margin-top:14px;">حجم الخط:</h4>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <input type="range" id="fontSizeRange" min="12" max="22" value="15" oninput="changeFontSize(this.value)">
-                <span id="fontSizeLabel" style="font-weight:bold; min-width:45px;">15px</span>
-            </div>
+            <h4 style="text-align:right; margin-top:10px;">حجم الخط:</h4>
+            <input type="range" id="fontSizeRange" min="12" max="24" value="15" oninput="changeFontSize(this.value)">
+            <span id="fontSizeLabel" style="font-weight:bold; color:var(--primary);">15px</span>
             
-            <h4 style="text-align:right; margin-top:14px;">وضع العرض والكثافة:</h4>
+            <h4 style="text-align:right; margin-top:10px;">وضع العرض:</h4>
             <select id="viewModeSelector" onchange="changeViewMode(this.value)">
-                <option value="comfortable">Comfortable - مريح (افتراضي)</option>
+                <option value="comfortable">Comfortable - مريح</option>
                 <option value="compact">Compact - مضغوط</option>
                 <option value="spacious">Spacious - واسع</option>
             </select>
             
-            <h4 style="text-align:right; margin-top:14px;">شكل فقاعات الرسائل:</h4>
+            <h4 style="text-align:right; margin-top:10px;">شكل الفقاعات:</h4>
             <select id="bubbleStyle" onchange="changeBubbleStyle(this.value)">
-                <option value="14px">دائرية مريحة (افتراضي)</option>
-                <option value="4px">مربعة كلاسيكية</option>
-                <option value="22px">دائرية جداً فائقة</option>
+                <option value="12px">دائرية قياسية</option>
+                <option value="4px">مربعة حادة</option>
+                <option value="22px">دائرية كبسولية</option>
             </select>
-            
-            <h4 style="text-align:right; margin-top:14px;">أصوات التنبيه:</h4>
+
+            <h4 style="text-align:right; margin-top:10px;">أصوات التنبيه:</h4>
             <select id="soundSelector" onchange="setNotificationSound(this.value)">
-                <option value="default">النغمة الافتراضية</option>
+                <option value="default">افتراضي</option>
                 <option value="bell">🔔 جرس هادئ</option>
                 <option value="chime">✨ رنين موسيقي</option>
                 <option value="pop">🎈 فقاعة</option>
@@ -385,27 +381,31 @@
 
     <!-- ADMIN MODAL -->
     <div id="adminModal" class="modal hidden">
-        <div class="modal-content">
-            <h3 style="color:var(--admin-gold)"><i class="fas fa-crown"></i> 👑 لوحة تحكم المشرف العام</h3>
+        <div class="modal-content" style="max-width: 580px;">
+            <h3 style="color:var(--admin-gold)"><i class="fas fa-crown"></i> 👑 لوحة تحكم الإدارة الشاملة</h3>
             
-            <div class="tabs" style="margin-bottom: 14px;">
+            <div class="tabs" style="margin-bottom: 14px; flex-wrap: wrap;">
                 <div class="tab active" onclick="switchAdminTab('general')">⚙️ عام</div>
-                <div class="tab" onclick="switchAdminTab('users')">👥 المستخدمين</div>
+                <div class="tab" onclick="switchAdminTab('users')">👥 الأعضاء</div>
+                <div class="tab" id="tabAdminDeputiesBtn" onclick="switchAdminTab('deputies')">🛡️ نواب المشرف</div>
+                <div class="tab" onclick="switchAdminTab('bans')">🚫 المحظورون</div>
                 <div class="tab" onclick="switchAdminTab('stats')">📊 إحصائيات</div>
                 <div class="tab" onclick="switchAdminTab('ai')">🤖 الذكاء</div>
             </div>
             
+            <!-- GENERAL SETTINGS TAB -->
             <div id="adminTabGeneral">
-                <h4 style="text-align:right;">تحديث بيانات حساب المشرف:</h4>
-                <input type="text" id="adminNewUser" placeholder="اسم المستخدم الجديد للمشرف">
-                <input type="password" id="adminNewPass" placeholder="كلمة السر الجديدة للمشرف" style="margin-top:8px;">
-                <button onclick="updateAdminCreds()" class="action-btn gold">👑 حفظ بيانات المشرف</button>
-                
-                <hr style="border-color:#333; margin:16px 0;">
+                <div id="ownerOnlySection">
+                    <h4 style="text-align:right;">تحديث بيانات حساب المشرف العام:</h4>
+                    <input type="text" id="adminNewUser" placeholder="اسم المستخدم الجديد للمشرف">
+                    <input type="password" id="adminNewPass" placeholder="كلمة السر الجديدة للمشرف" style="margin-top:8px;">
+                    <button onclick="updateAdminCreds()" class="action-btn gold">👑 حفظ بيانات المشرف</button>
+                    <hr style="border-color:#333; margin:16px 0;">
+                </div>
                 
                 <h4 style="text-align:right;">الشريط الإعلاني المتنقل:</h4>
                 <input type="text" id="adminTickerInput" placeholder="اكتب نص الإعلان العام...">
-                <button onclick="updateTicker()" class="action-btn">📢 نشر في الشريط</button>
+                <button onclick="updateTicker()" class="action-btn">📢 نشر في الشريط العلوي</button>
                 
                 <hr style="border-color:#333; margin:16px 0;">
                 
@@ -427,6 +427,7 @@
                 <button onclick="deleteAllData()" class="action-btn danger" style="margin-top:10px;"><i class="fas fa-trash-alt"></i> ⚠️ حذف كل البيانات (تطهير شامل)</button>
             </div>
             
+            <!-- USERS TAB -->
             <div id="adminTabUsers" class="hidden">
                 <h4 style="text-align:right;">👥 إدارة المستخدمين:</h4>
                 <div id="allUsersList" style="max-height:220px; overflow-y:auto; text-align:right; font-size:13px;"></div>
@@ -434,7 +435,58 @@
                 <h4 style="text-align:right;">👥 إدارة المجموعات:</h4>
                 <div id="allRoomsList" style="max-height:180px; overflow-y:auto; text-align:right; font-size:13px;"></div>
             </div>
+
+            <!-- DEPUTY ADMIN / ASSISTANT ADMIN TAB -->
+            <div id="adminTabDeputies" class="hidden">
+                <h4 style="text-align:right; color:var(--admin-gold);">🛡️ تعيين وتحديد صلاحيات نائب المشرف (مساعد أدمن):</h4>
+                <p style="color:var(--text-gray); font-size:12px; text-align:right; margin-bottom:10px;">
+                    يمكنك ترقية مستخدم ليصبح نائباً لك وتحديد الصلاحيات الممنوحة له بدقة (لا يمكنه حذف المشرف أو إضافة مشرفين).
+                </p>
+                
+                <select id="newDeputyUserSelect" style="margin-bottom:12px;"></select>
+                
+                <div style="background:rgba(255,255,255,0.04); padding:12px; border-radius:10px; text-align:right; font-size:13px; margin-bottom:12px;">
+                    <div style="font-weight:bold; margin-bottom:8px; color:var(--primary);">الصلاحيات الممنوحة للنائب:</div>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permMute" checked> <span>🔇 كتم الأعضاء في المجموعات</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permBan" checked> <span>🚫 حظر الأعضاء من المجموعات</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permPin" checked> <span>📌 تثبيت وإلغاء تثبيت الرسائل</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permClear" checked> <span>🧹 تنظيف ومسح رسائل المجموعات</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permApprove" checked> <span>👥 مراجعة والموافقة على طلبات التسجيل الجديدة</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permAnnounce"> <span>📢 نشر الإعلانات في الشريط العلوي</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin:6px 0; cursor:pointer;">
+                        <input type="checkbox" id="permStats" checked> <span>📊 مشاهدة الإحصائيات وتحليلات النشاط</span>
+                    </label>
+                </div>
+                
+                <button onclick="addDeputyAdmin()" class="action-btn gold">👑 تعيين نائب أدمن بالصلاحيات المحددة</button>
+                
+                <hr style="border-color:#333; margin:16px 0;">
+                <h4 style="text-align:right;">النواب المعينون حالياً:</h4>
+                <div id="deputiesList" style="max-height:220px; overflow-y:auto; text-align:right; margin-top:8px;"></div>
+            </div>
+
+            <!-- GLOBAL BANS TAB -->
+            <div id="adminTabBans" class="hidden">
+                <h4 style="text-align:right; color:var(--delete-red);">🚫 إدارة الحظر العام (الحسابات والأجهزة):</h4>
+                <p style="color:var(--text-gray); font-size:12px; text-align:right; margin-bottom:10px;">
+                    المستخدمون المحظورون عاماً يتم طردهم ومنعهم من الدخول والتسجيل.
+                </p>
+                <div id="globalBansList" style="max-height:260px; overflow-y:auto; text-align:right; font-size:13px;"></div>
+            </div>
             
+            <!-- STATS TAB -->
             <div id="adminTabStats" class="hidden">
                 <h4 style="text-align:right;">📊 إحصائيات النشاط والتفاعل:</h4>
                 <div id="statsContainer" style="text-align:right;"></div>
@@ -444,6 +496,7 @@
                 <div id="heatMapContainer" style="margin-top:12px;"></div>
             </div>
             
+            <!-- AI SETTINGS TAB -->
             <div id="adminTabAI" class="hidden">
                 <h4 style="text-align:right;">🤖 تكوين ميزات الذكاء الاصطناعي:</h4>
                 <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
@@ -569,7 +622,8 @@
                 <button onclick="shareReferralCode()" class="action-btn secondary" style="margin:0; font-size:12px;">🔗 رمز الإحالة</button>
             </div>
             
-            <button onclick="closeModal('profileModal')" class="action-btn" style="background:#333; margin-top:12px;">إغلاق</button>
+            <button onclick="logoutUser()" class="action-btn danger" style="margin-top:12px;"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج من الحساب</button>
+            <button onclick="closeModal('profileModal')" class="action-btn" style="background:#333; margin-top:8px;">إغلاق</button>
         </div>
     </div>
 
@@ -578,15 +632,15 @@
         <div class="modal-content">
             <h3>📸 نشر قصة جديدة (Story)</h3>
             <p style="color:var(--text-gray); text-align:right;">نص القصة:</p>
-            <input type="text" id="storyText" placeholder="اكتب نص القصة...">
-            <p style="color:var(--text-gray); margin-top:12px; text-align:right;">أو أرفق صورة:</p>
+            <input type="text" id="storyText" placeholder="اكتب ما يدور في ذهنك...">
+            <p style="color:var(--text-gray); margin-top:10px; text-align:right;">أو ارفع صورة للقصة:</p>
             <div class="image-upload-area" onclick="document.getElementById('storyImageFile').click()">
                 <i class="fas fa-cloud-upload-alt" style="font-size:30px; color:var(--text-gray);"></i>
-                <p style="color:var(--text-gray); margin:5px 0;">اضغط لاختيار صورة للقصة</p>
+                <p style="color:var(--text-gray); margin:5px 0;">اضغط لاختيار صورة</p>
                 <img id="storyImagePreview" class="preview-img" alt="Story Preview">
             </div>
             <input type="file" id="storyImageFile" hidden accept="image/*" onchange="previewStoryImage(this)">
-            <button onclick="addStory()" class="action-btn">📢 نشر القصة الآن</button>
+            <button onclick="addStory()" class="action-btn">📢 نشر القصة</button>
             <button onclick="closeModal('addStoryModal')" class="action-btn" style="background:#333;">إلغاء</button>
         </div>
     </div>
@@ -596,7 +650,7 @@
         <div class="story-progress"><div class="story-progress-bar" id="storyProgressBar"></div></div>
         <div class="story-header">
             <div class="default-avatar" style="width:38px;height:38px;">👤</div>
-            <span id="storyViewerName" style="font-weight:bold; font-size:15px;"></span>
+            <span id="storyViewerName" style="font-weight:bold;"></span>
             <span style="flex:1;"></span>
             <button class="icon-btn" onclick="closeStoryViewer()" style="color:white;"><i class="fas fa-times"></i></button>
         </div>
@@ -628,8 +682,10 @@
 
     <!-- GAMES & ACTIVITIES MODAL -->
     <div id="gamesModal" class="modal hidden">
-        <div class="modal-content" style="max-width:560px;">
-            <h3>🎮 مركز الألعاب والأنشطة التفاعلية</h3>
+        <div class="modal-content" style="max-width:580px;">
+            <h3>🎮 مركز الألعاب والتحديات التفاعلية</h3>
+            <p style="color:var(--text-gray); font-size:12px; margin-bottom:12px;">يمكنك اللعب محلياً أو إرسال تحدي مباشر في المجموعة أو لصديق</p>
+            
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin:14px 0;">
                 <div class="theme-option" style="background:rgba(74,144,226,0.25);" onclick="startTicTacToe()">
                     <span style="font-size:26px;">⭕</span><br>
