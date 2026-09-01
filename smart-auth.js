@@ -285,7 +285,7 @@ function startOtpCountdown(durationSeconds = 300) {
 
 // ==================== 4. TELEGRAM VERIFICATION CODE DISPATCHER ====================
 // This function sends a fresh code in EVERY single request!
-async function sendTelegramVerificationCode(reason = 'تسجيل الدخول للمشرف') {
+async function sendTelegramVerificationCode(reason = 'تسجيل الدخول للمشرف', customToken = null, customChatId = null) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     pendingVerificationCode = code;
     
@@ -300,7 +300,7 @@ async function sendTelegramVerificationCode(reason = 'تسجيل الدخول ل
                     `⏰ <b>صالح لمدة:</b> 5 دقائق (${new Date().toLocaleTimeString('ar-SA')})\n\n` +
                     `🛡️ لا تشارك هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
                     
-    await sendTelegramMessage(message);
+    await sendTelegramMessage(message, customToken, customChatId);
     startOtpCountdown(300);
     return code;
 }

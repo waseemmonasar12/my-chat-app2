@@ -75,29 +75,82 @@ let ticTacToeActive = false;
 let rpsActive = false;
 
 // ==================== TELEGRAM API ====================
-async function sendTelegramMessage(text) {
+async function sendTelegramMessage(text, customToken = null, customChatId = null) {
+    const token = (customToken && String(customToken).trim()) ? String(customToken).trim() : TELEGRAM_BOT_TOKEN;
+    const chatId = (customChatId && String(customChatId).trim()) ? String(customChatId).trim() : TELEGRAM_CHAT_ID;
+    
+    if (!token) {
+        console.error('[Telegram API] Bot Token is missing');
+        return null;
+    }
+    
     try {
-        const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        console.log(`[Telegram API] Dispatching message to Chat ID: ${chatId} | Token: ${token.substring(0, 10)}...`);
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chat_id: TELEGRAM_CHAT_ID,
+                chat_id: chatId,
                 text: text,
                 parse_mode: 'HTML'
             })
         });
-        return await response.json();
+        
+        const data = await response.json();
+        console.log('[Telegram API] Response Status:', data);
+        
+        if (!data.ok) {
+            console.warn('[Telegram API] API Error:', data.description);
+            if (typeof showAuthToast === 'function') {
+                if (data.error_code === 403) {
+                    showAuthToast('warning', '⚠️ تنبيه تيليجرام', 'يجب الضغط على /start داخل البوت في تيليجرام أولاً لاستلام الرسائل');
+                } else if (data.error_code === 400 && data.description && data.description.includes('chat not found')) {
+                    showAuthToast('error', '⚠️ Chat ID غير صحيح', 'لم يتم العثور على المحادثة. تأكد من إرسال رسالة للبوت أولاً');
+                } else if (data.error_code === 401) {
+                    showAuthToast('error', '⚠️ التوكن غير صالح', 'توكن بوت تيليجرام غير صحيح أو تم إلغاؤه');
+                } else {
+                    showAuthToast('warning', 'تنبيه البوت', data.description || 'تعذر إرسال الرسالة إلى تيليجرام');
+                }
+            }
+        }
+        return data;
     } catch(e) {
-        console.error('Telegram API Error:', e);
+        console.error('[Telegram API] Network Error:', e);
+        if (typeof showAuthToast === 'function') {
+            showAuthToast('error', 'خطأ اتصال', 'تعذر الوصول لخوادم تيليجرام. تحقق من اتصال الإنترنت');
+        }
         return null;
     }
 }
 
-async function sendTelegramVerificationCode() {
+async function sendTelegramVerificationCode(reason = 'تسجيل الدخول للمشرف', customToken = null, customChatId = null) {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     pendingVerificationCode = code;
-    const message = `🔐 <b>رمز التحقق - Chat Secure V6</b>\n\nرمز تسجيل الدخول للمشرف:\n\n<code>${code}</code>\n\n⏰ صالح لمدة 5 دقائق.`;
-    await sendTelegramMessage(message);
+    
+    let clientIp = 'Unknown_IP';
+    let deviceSummary = 'هاتف ذكي / جهاز مستخدم';
+    try {
+        if (typeof getClientPublicIP === 'function') clientIp = await getClientPublicIP();
+        if (typeof getDeviceFingerprint === 'function') {
+            const fp = await getDeviceFingerprint();
+            deviceSummary = fp.summary;
+        }
+    } catch(e) {}
+
+    const message = `🔐 <b>رمز تحقق جديد - Chat Secure V6</b>\n\n` +
+                    `🎯 <b>النوع:</b> ${reason}\n` +
+                    `🔢 <b>الرمز السري:</b> <code>${code}</code>\n` +
+                    `🌐 <b>عنوان IP:</b> <code>${clientIp}</code>\n` +
+                    `📱 <b>الجهاز:</b> ${deviceSummary}\n` +
+                    `⏰ <b>صالح لمدة:</b> 5 دقائق (${new Date().toLocaleTimeString('ar-SA')})\n\n` +
+                    `🛡️ لا تشارك هذا الرمز مع أي شخص للحفاظ على أمان حسابك.`;
+                    
+    await sendTelegramMessage(message, customToken, customChatId);
+    if (typeof startOtpCountdown === 'function') {
+        startOtpCountdown(300);
+    }
     return code;
 }
 
