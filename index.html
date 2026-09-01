@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Chat Secure V6</title>
+    <meta name="description" content="تطبيق دردشة متكامل فائق الأمان ومزود بالذكاء الاصطناعي، التشفير الشامل، والميزات المتقدمة" />
+    <meta property="og:title" content="Chat Secure V6" />
+    <meta property="og:description" content="تطبيق دردشة متكامل فائق الأمان ومزود بالذكاء الاصطناعي، التشفير الشامل، والميزات المتقدمة" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    
+    <!-- Firebase 8.10.0 SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts (19 Arabic Fonts) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Amiri:wght@400;700&family=Cairo:wght@300;400;600;700;900&family=Changa:wght@300;400;600;700&family=El+Messiri:wght@400;600;700&family=Harmattan:wght@400;700&family=Jomhuria&family=Katibeh&family=Lalezar&family=Lateef&family=Mada:wght@300;400;600;700&family=Markazi+Text:wght@400;600;700&family=Noto+Kufi+Arabic:wght@300;400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@300;400;500;700;800&family=Vibes&family=Zilla+Slab:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- QRCode.js -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- LOADING SCREEN -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">🛡️ Chat Secure V6 - جاري التحميل...</div>
+    </div>
+
+    <!-- ADMIN TICKER -->
+    <div class="ticker-wrap hidden" id="adminTicker">
+        <i class="fas fa-bullhorn" style="color:var(--admin-gold);"></i>
+        <div class="ticker-move"><span class="ticker-text" id="tickerMsg"></span></div>
+    </div>
+
+    <!-- SMART AUTH SCREEN -->
+    <div id="auth-screen" class="auth-wrapper">
+        <div class="auth-card">
+            <div style="font-size: 54px; margin-bottom: 8px; animation: float 3s ease infinite;">🛡️</div>
+            <h2 style="margin:0 0 4px; font-size: 26px; font-weight: 900; color: white;">Chat Secure V6</h2>
+            <p style="color: var(--primary); margin-bottom: 18px; font-size: 13px; font-weight: bold;">نظام المحادثة المشفر فائق الأمان</p>
+            
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tabLoginBtn" onclick="switchAuthTab('login')">🚪 تسجيل الدخول</div>
+                <div class="auth-tab" id="tabRegisterBtn" onclick="switchAuthTab('register')">✨ إنشاء حساب ذكي</div>
+            </div>
+
+            <div id="authFormSection">
+                <input type="text" id="usernameInput" placeholder="👤 اسم المستخدم" style="margin-bottom: 12px;" autocomplete="username">
+                <input type="password" id="passwordInput" placeholder="🔒 كلمة السر" style="margin-bottom: 12px;" autocomplete="current-password">
+                
+                <!-- Verification Code for Admin -->
+                <div id="telegramVerificationSection" class="hidden" style="margin-top: 10px; background: rgba(255,215,0,0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,215,0,0.2);">
+                    <p style="color: var(--admin-gold); font-size: 13px; margin-bottom: 8px; font-weight: bold;">
+                        <i class="fab fa-telegram"></i> تم إرسال رمز التحقق إلى بوت تيليجرام
+                    </p>
+                    <input type="text" id="telegramCodeInput" placeholder="رمز التحقق (6 أرقام)" style="text-align: center; letter-spacing: 6px; font-size: 20px; font-weight: bold;">
+                </div>
+
+                <!-- Approval Waiting Status -->
+                <div id="approvalStatusBox" class="hidden" style="margin-top: 12px; background: rgba(0,168,132,0.12); padding: 12px; border-radius: 10px; border: 1px solid var(--primary);">
+                    <div style="display:flex; align-items:center; justify-content:center; gap:8px; color:var(--primary); font-weight:bold;">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>بانتظار موافقة المشرف عبر تيليجرام...</span>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-gray); margin-top: 6px;" id="approvalDetailsText">تم إرسال بصمة جهازك وعنوان IP للمشرف للموافقة</p>
+                </div>
+
+                <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="action-btn">🚪 دخول آمن</button>
+                <p id="loginError" style="color: var(--delete-red); font-size: 13px; margin-top: 12px; min-height: 18px;"></p>
+            </div>
+
+            <div style="margin-top: 16px; font-size: 11px; color: var(--text-gray); display:flex; justify-content:center; gap:12px;">
+                <span><i class="fas fa-lock"></i> تشفير AES-256</span>
+                <span><i class="fas fa-fingerprint"></i> بصمة الجهاز</span>
+                <span><i class="fab fa-telegram"></i> حماية تيليجرام</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP DASHBOARD -->
+    <div id="app-dashboard" class="app-container hidden">
+        <div id="globalBg"></div>
+        
+        <!-- SIDEBAR -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="openProfileSettings()">
+                    <img id="myAvatarImg" src="" class="avatar-img" style="display:none;" alt="My Avatar">
+                    <div id="myDefaultAvatar" class="default-avatar">👤</div>
+                    <div>
+                        <span id="myNameDisplay" style="font-weight: bold; font-size: 15px; display:block;"></span>
+                        <small id="userPointsDisplay" style="color:var(--admin-gold); font-size:11px; font-weight:bold;">💰 0 نقطة</small>
+                    </div>
+                </div>
+                <div style="display:flex; gap:4px;">
+                    <button class="icon-btn hidden" id="adminBtn" onclick="openAdminPanel()" title="لوحة المشرف">
+                        <i class="fas fa-crown" style="color:var(--admin-gold)"></i>
+                    </button>
+                    <button class="icon-btn" onclick="openSearchBox()" title="بحث"><i class="fas fa-search"></i></button>
+                    <button class="icon-btn" onclick="openFriendRequests()" title="طلبات الصداقة"><i class="fas fa-user-plus"></i></button>
+                    <button class="icon-btn" onclick="showCreateRoom()" title="إنشاء مجموعة"><i class="fas fa-users-medical"></i></button>
+                    <button class="icon-btn" onclick="openGames()" title="الألعاب والمسابقات"><i class="fas fa-gamepad"></i></button>
+                    <button class="icon-btn" onclick="openThemeEditor()" title="التخصيص"><i class="fas fa-palette"></i></button>
+                </div>
+            </div>
+
+            <!-- STORIES -->
+            <div class="stories-rail" id="storiesRail">
+                <div class="story-item" onclick="showAddStoryModal()">
+                    <div class="story-add">+</div>
+                    <span class="story-name">حالتي</span>
+                </div>
+            </div>
+            
+            <!-- SEARCH BAR -->
+            <div style="padding:10px 14px;">
+                <input type="text" id="searchInput" placeholder="🔍 بحث سريع في المحادثات والأصدقاء..." onkeyup="searchGlobal()" 
+                       style="border-radius:20px; padding:10px 16px; font-size: 13px;">
+            </div>
+
+            <!-- TABS -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('rooms')" id="tab-rooms">👥 المجموعات</div>
+                <div class="tab" onclick="switchTab('users')" id="tab-users">👤 الأصدقاء</div>
+            </div>
+
+            <!-- LISTS -->
+            <div id="roomsList" class="list-container"></div>
+            <div id="usersList" class="list-container hidden"></div>
+            <div id="searchResults" class="list-container hidden" style="background:#111b21;"></div>
+        </div>
+
+        <!-- CHAT AREA -->
+        <div id="chatArea" class="chat-area">
+            <div class="chat-header">
+                <button class="icon-btn" onclick="closeChatMobile()" title="رجوع"><i class="fas fa-arrow-right"></i></button>
+                <img id="headerChatAvatar" src="" class="avatar-img" style="display:none; width:38px; height:38px;" alt="Chat Avatar">
+                <div id="headerChatDefault" class="default-avatar" style="width:38px; height:38px;">👥</div>
+                <div style="flex:1; overflow:hidden;">
+                    <div id="currentRoomName" style="font-weight: bold; font-size: 15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                    <small style="color:var(--text-gray); font-size:11px;" id="roomStatusText">🔒 مشفر E2E بالكامل</small>
+                </div>
+                <button class="icon-btn" onclick="toggleTranslation()" title="ترجمة فورية"><i class="fas fa-language"></i></button>
+                <button class="icon-btn" onclick="openSearchBox()" title="بحث في الرسائل"><i class="fas fa-search"></i></button>
+                <button class="icon-btn" onclick="showPinnedMessages()" title="الرسائل المثبتة"><i class="fas fa-thumbtack"></i></button>
+                <button class="icon-btn" onclick="showPollCreator()" title="استطلاع رأي"><i class="fas fa-poll"></i></button>
+                <button class="icon-btn" onclick="showRoomQRCode()" title="رمز QR"><i class="fas fa-qrcode"></i></button>
+                <button class="icon-btn" onclick="showRoomSettings()" title="إعدادات المجموعة"><i class="fas fa-cog"></i></button>
+            </div>
+            
+            <!-- AI SUGGESTIONS -->
+            <div class="ai-suggestions" id="aiSuggestions" style="display:none;"></div>
+
+            <!-- TRANSLATION BAR -->
+            <div class="translation-bar hidden" id="translationBar">
+                <span style="font-size:12px; color:var(--text-gray); font-weight:bold;">🌐 ترجمة إلى:</span>
+                <select id="translationLanguage" onchange="translateMessages()">
+                    <option value="ar">العربية (Arabic)</option>
+                    <option value="en">English (الإنجليزية)</option>
+                    <option value="fr">Français (الفرنسية)</option>
+                    <option value="es">Español (الإسبانية)</option>
+                    <option value="de">Deutsch (الألمانية)</option>
+                    <option value="it">Italiano (الإيطالية)</option>
+                    <option value="pt">Português (البرتغالية)</option>
+                    <option value="ru">Русский (الروسية)</option>
+                    <option value="zh">中文 (الصينية)</option>
+                    <option value="ja">日本語 (اليابانية)</option>
+                    <option value="ko">한국어 (الكورية)</option>
+                    <option value="tr">Türkçe (التركية)</option>
+                    <option value="fa">فارسی (الفارسية)</option>
+                    <option value="ur">اردو (الأردية)</option>
+                    <option value="hi">हिन्दी (الهندية)</option>
+                </select>
+            </div>
+            
+            <!-- REPLY BAR -->
+            <div class="reply-bar" id="replyBar" style="display:none; background: rgba(32,44,51,0.85); padding: 8px 16px; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06);">
+                <div class="reply-info" style="flex:1; overflow:hidden;">
+                    <div class="reply-preview-sender" id="replyPreviewSender" style="color: var(--primary); font-size: 12px; font-weight: bold;"></div>
+                    <div class="reply-preview-text" id="replyPreviewText" style="color: var(--text-gray); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                </div>
+                <span class="cancel-reply" onclick="cancelReply()" style="cursor:pointer; color:var(--text-gray); padding:5px;"><i class="fas fa-times"></i></span>
+            </div>
+            
+            <!-- TYPING INDICATOR -->
+            <div class="typing-indicator" id="typingIndicator" style="font-size:12px; color:var(--primary); padding:4px 16px; display:none; font-style:italic;">✍️ شخص ما يكتب...</div>
+            
+            <!-- MESSAGES CONTAINER -->
+            <div id="messagesContainer" class="messages-container" onscroll="saveConversationPosition()"></div>
+            
+            <!-- INPUT AREA -->
+            <div class="input-area">
+                <button class="icon-btn" onclick="toggleAttachMenu()" title="إرفاق ملفات"><i class="fas fa-paperclip"></i></button>
+                <button class="icon-btn" onclick="toggleEmojiPicker()" title="إيموجي">😊</button>
+                <input type="text" id="msgInput" placeholder="اكتب رسالة..." oninput="emitTyping(); showAISuggestions();" 
+                       onkeypress="if(event.key==='Enter') sendText()">
+                <button class="icon-btn" id="voiceBtn" onmousedown="startRecording()" onmouseup="stopRecording()" 
+                        onmouseleave="stopRecording()" ontouchstart="startRecording()" ontouchend="stopRecording()"
+                        title="تسجيل صوتي">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <span class="recording-indicator" id="recordingIndicator" style="display:none; align-items:center; gap:8px; color:var(--delete-red); font-size:13px; font-weight:bold;">
+                    <span style="width:10px; height:10px; border-radius:50%; background:var(--delete-red); animation:pulse 1s infinite;"></span>
+                    جاري التسجيل...
+                </span>
+                <button class="icon-btn" onclick="sendText()" style="color:var(--primary);" title="إرسال">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMOJI PICKER -->
+    <div class="emoji-picker" id="emojiPicker"></div>
+
+    <!-- ATTACH MENU -->
+    <div class="attach-menu" id="attachMenu">
+        <div class="attach-item" onclick="document.getElementById('imageInput').click(); toggleAttachMenu();">
+            <i class="fas fa-image" style="color:#4caf50; font-size:20px;"></i> <span>📷 صورة</span>
+        </div>
+        <div class="attach-item" onclick="document.getElementById('videoInput').click(); toggleAttachMenu();">
+            <i class="fas fa-video" style="color:#2196f3; font-size:20px;"></i> <span>🎬 فيديو</span>
+        </div>
+        <div class="attach-item" onclick="document.getElementById('docInput').click(); toggleAttachMenu();">
+            <i class="fas fa-file-pdf" style="color:#f44336; font-size:20px;"></i> <span>📄 مستند</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); startSpeechToText();">
+            <i class="fas fa-microphone-alt" style="color:#ff9800; font-size:20px;"></i> <span>🎤 تحويل الصوت لنص</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); shareLocation();">
+            <i class="fas fa-map-marker-alt" style="color:#e91e63; font-size:20px;"></i> <span>📍 مشاركة موقع</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); shareYouTube();">
+            <i class="fab fa-youtube" style="color:#ff0000; font-size:20px;"></i> <span>📺 فيديو يوتيوب</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); shareSpotify();">
+            <i class="fab fa-spotify" style="color:#1db954; font-size:20px;"></i> <span>🎵 مسار Spotify</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); sendSecretMessage();">
+            <i class="fas fa-user-secret" style="color:#9c27b0; font-size:20px;"></i> <span>🔒 رسالة سرية ذاتية الاختفاء</span>
+        </div>
+        <div class="attach-item" onclick="toggleAttachMenu(); send3DMessage();">
+            <i class="fas fa-cube" style="color:#00bcd4; font-size:20px;"></i> <span>🧊 رسالة ثلاثية الأبعاد 3D</span>
+        </div>
+    </div>
+    
+    <input type="file" id="imageInput" hidden accept="image/*" onchange="sendImage(this)">
+    <input type="file" id="videoInput" hidden accept="video/*" onchange="sendVideo(this)">
+    <input type="file" id="docInput" hidden accept=".pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip,.rar" onchange="sendDocument(this)">
+
+    <!-- CONTEXT MENU -->
+    <div id="contextMenu" class="context-menu">
+        <div class="ctx-item" onclick="ctxReply()"><i class="fas fa-reply"></i> ↩️ رد</div>
+        <div class="ctx-item" onclick="ctxCopy()"><i class="fas fa-copy"></i> 📋 نسخ</div>
+        <div class="ctx-item" onclick="ctxForward()"><i class="fas fa-share"></i> 📤 إعادة توجيه</div>
+        <div class="ctx-item" onclick="ctxPin()" id="ctxPinBtn"><i class="fas fa-thumbtack"></i> 📌 تثبيت للجميع</div>
+        <div class="ctx-item" onclick="ctxReact()"><i class="fas fa-smile"></i> 😊 تفاعل سريع</div>
+        <div class="ctx-item" onclick="ctxTranslate()"><i class="fas fa-language"></i> 🌐 ترجمة الرسالة</div>
+        <div class="ctx-item" onclick="ctxSummarize()"><i class="fas fa-file-alt"></i> 📝 تلخيص بالذكاء</div>
+        <div class="ctx-item" onclick="ctxSchedule()"><i class="fas fa-clock"></i> ⏰ جدولة الرسالة</div>
+        <div class="ctx-item danger" id="ctxDeleteBtn" onclick="ctxDelete()"><i class="fas fa-trash"></i> 🗑️ حذف للجميع</div>
+    </div>
+
+    <!-- REACTION PICKER -->
+    <div id="reactionPicker" class="context-menu" style="display:none; min-width:auto; padding: 10px;">
+        <div style="display:flex; gap: 12px; font-size: 26px; cursor: pointer;">
+            <span onclick="addReaction('👍')">👍</span>
+            <span onclick="addReaction('❤️')">❤️</span>
+            <span onclick="addReaction('😂')">😂</span>
+            <span onclick="addReaction('😮')">😮</span>
+            <span onclick="addReaction('😢')">😢</span>
+            <span onclick="addReaction('👏')">👏</span>
+            <span onclick="addReaction('🎉')">🎉</span>
+            <span onclick="addReaction('🔥')">🔥</span>
+        </div>
+    </div>
+
+    <!-- ADVANCED SEARCH MODAL -->
+    <div class="search-box" id="searchBox">
+        <h3 style="margin:0 0 12px;"><i class="fas fa-search"></i> 🔍 بحث متقدم في الرسائل</h3>
+        <input type="text" id="searchBoxInput" placeholder="اكتب للبحث في الرسائل الحالية..." oninput="searchInMessages()">
+        <div class="search-results" id="searchBoxResults"></div>
+        <button onclick="closeSearchBox()" class="action-btn" style="background:#333; margin-top:12px;">إغلاق</button>
+    </div>
+
+    <!-- THEME EDITOR MODAL -->
+    <div id="themeEditorModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🎨 محرر التخصيص والمظهر</h3>
+            
+            <h4 style="text-align:right; margin-top:14px;">اختر الخط (19 خط عربي):</h4>
+            <select id="fontSelector" onchange="changeFont(this.value)">
+                <option value="'Cairo', sans-serif">Cairo - القاهرة</option>
+                <option value="'Amiri', serif">Amiri - أميري</option>
+                <option value="'Almarai', sans-serif">Almarai - المراعي</option>
+                <option value="'Tajawal', sans-serif">Tajawal - تجوال</option>
+                <option value="'Changa', sans-serif">Changa - تشانغا</option>
+                <option value="'El Messiri', sans-serif">El Messiri - المسيري</option>
+                <option value="'Harmattan', sans-serif">Harmattan - هرمان</option>
+                <option value="'Jomhuria', cursive">Jomhuria - جمهورية</option>
+                <option value="'Katibeh', cursive">Katibeh - كتيبة</option>
+                <option value="'Lalezar', cursive">Lalezar - لاليزار</option>
+                <option value="'Lateef', cursive">Lateef - لطيف</option>
+                <option value="'Mada', sans-serif">Mada - مدى</option>
+                <option value="'Markazi Text', serif">Markazi Text - مركزي</option>
+                <option value="'Noto Kufi Arabic', sans-serif">Noto Kufi - كوفي</option>
+                <option value="'Noto Naskh Arabic', serif">Noto Naskh - نسخ</option>
+                <option value="'Reem Kufi', sans-serif">Reem Kufi - ريم كوفي</option>
+                <option value="'Scheherazade New', serif">Scheherazade - شهرزاد</option>
+                <option value="'Vibes', cursive">Vibes - فايبز</option>
+                <option value="'Zilla Slab', serif">Zilla Slab - زيلا سلاب</option>
+            </select>
+            
+            <h4 style="text-align:right; margin-top:14px;">حجم الخط:</h4>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="range" id="fontSizeRange" min="12" max="22" value="15" oninput="changeFontSize(this.value)">
+                <span id="fontSizeLabel" style="font-weight:bold; min-width:45px;">15px</span>
+            </div>
+            
+            <h4 style="text-align:right; margin-top:14px;">وضع العرض والكثافة:</h4>
+            <select id="viewModeSelector" onchange="changeViewMode(this.value)">
+                <option value="comfortable">Comfortable - مريح (افتراضي)</option>
+                <option value="compact">Compact - مضغوط</option>
+                <option value="spacious">Spacious - واسع</option>
+            </select>
+            
+            <h4 style="text-align:right; margin-top:14px;">شكل فقاعات الرسائل:</h4>
+            <select id="bubbleStyle" onchange="changeBubbleStyle(this.value)">
+                <option value="14px">دائرية مريحة (افتراضي)</option>
+                <option value="4px">مربعة كلاسيكية</option>
+                <option value="22px">دائرية جداً فائقة</option>
+            </select>
+            
+            <h4 style="text-align:right; margin-top:14px;">أصوات التنبيه:</h4>
+            <select id="soundSelector" onchange="setNotificationSound(this.value)">
+                <option value="default">النغمة الافتراضية</option>
+                <option value="bell">🔔 جرس هادئ</option>
+                <option value="chime">✨ رنين موسيقي</option>
+                <option value="pop">🎈 فقاعة</option>
+            </select>
+            
+            <h4 style="text-align:right; margin-top:14px;">الثيمات اللونية الجاهزة:</h4>
+            <div class="theme-options">
+                <div class="theme-option active" style="background:linear-gradient(135deg,#00a884,#005c4b);" onclick="applyTheme('default')">
+                    <span>🟢 الزمردي</span>
+                </div>
+                <div class="theme-option" style="background:linear-gradient(135deg,#4a90e2,#2c3e50);" onclick="applyTheme('blue')">
+                    <span>🔵 المحيطي</span>
+                </div>
+                <div class="theme-option" style="background:linear-gradient(135deg,#e74c3c,#c0392b);" onclick="applyTheme('red')">
+                    <span>🔴 الياقوتي</span>
+                </div>
+                <div class="theme-option" style="background:linear-gradient(135deg,#9b59b6,#8e44ad);" onclick="applyTheme('purple')">
+                    <span>🟣 الأرجواني</span>
+                </div>
+                <div class="theme-option" style="background:linear-gradient(135deg,#f39c12,#e67e22);" onclick="applyTheme('orange')">
+                    <span>🟠 الكهرماني</span>
+                </div>
+                <div class="theme-option" style="background:linear-gradient(135deg,#1abc9c,#16a085);" onclick="applyTheme('teal')">
+                    <span>🟢 التركواز</span>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;">
+                <button onclick="toggleReadingMode()" class="action-btn secondary" style="margin:0;">📖 وضع القراءة</button>
+                <button onclick="toggleDataSaver()" class="action-btn secondary" style="margin:0;">📉 توفير البيانات</button>
+            </div>
+            
+            <button onclick="closeModal('themeEditorModal')" class="action-btn" style="background:#333; margin-top:14px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- ADMIN MODAL -->
+    <div id="adminModal" class="modal hidden">
+        <div class="modal-content">
+            <h3 style="color:var(--admin-gold)"><i class="fas fa-crown"></i> 👑 لوحة تحكم المشرف العام</h3>
+            
+            <div class="tabs" style="margin-bottom: 14px;">
+                <div class="tab active" onclick="switchAdminTab('general')">⚙️ عام</div>
+                <div class="tab" onclick="switchAdminTab('users')">👥 المستخدمين</div>
+                <div class="tab" onclick="switchAdminTab('stats')">📊 إحصائيات</div>
+                <div class="tab" onclick="switchAdminTab('ai')">🤖 الذكاء</div>
+            </div>
+            
+            <div id="adminTabGeneral">
+                <h4 style="text-align:right;">تحديث بيانات حساب المشرف:</h4>
+                <input type="text" id="adminNewUser" placeholder="اسم المستخدم الجديد للمشرف">
+                <input type="password" id="adminNewPass" placeholder="كلمة السر الجديدة للمشرف" style="margin-top:8px;">
+                <button onclick="updateAdminCreds()" class="action-btn gold">👑 حفظ بيانات المشرف</button>
+                
+                <hr style="border-color:#333; margin:16px 0;">
+                
+                <h4 style="text-align:right;">الشريط الإعلاني المتنقل:</h4>
+                <input type="text" id="adminTickerInput" placeholder="اكتب نص الإعلان العام...">
+                <button onclick="updateTicker()" class="action-btn">📢 نشر في الشريط</button>
+                
+                <hr style="border-color:#333; margin:16px 0;">
+                
+                <h4 style="text-align:right;">تغيير خلفية التطبيق العامة:</h4>
+                <div class="image-upload-area" onclick="document.getElementById('bgFileInput').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:32px; color:var(--text-gray);"></i>
+                    <p style="color:var(--text-gray); margin:6px 0;">اضغط لاختيار صورة الخلفية</p>
+                    <img id="bgPreview" class="preview-img" alt="Background Preview">
+                </div>
+                <input type="file" id="bgFileInput" hidden accept="image/*" onchange="previewBgImage(this)">
+                <button onclick="updateGlobalBgFromFile()" class="action-btn">🖼️ حفظ ونشر الخلفية</button>
+                
+                <hr style="border-color:#333; margin:16px 0;">
+                
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <button onclick="backupData()" class="action-btn secondary" style="margin:0;"><i class="fas fa-download"></i> نسخ احتياطي</button>
+                    <button onclick="generateWeeklyReport()" class="action-btn secondary" style="margin:0;"><i class="fas fa-chart-pie"></i> تقرير أسبوعي</button>
+                </div>
+                <button onclick="deleteAllData()" class="action-btn danger" style="margin-top:10px;"><i class="fas fa-trash-alt"></i> ⚠️ حذف كل البيانات (تطهير شامل)</button>
+            </div>
+            
+            <div id="adminTabUsers" class="hidden">
+                <h4 style="text-align:right;">👥 إدارة المستخدمين:</h4>
+                <div id="allUsersList" style="max-height:220px; overflow-y:auto; text-align:right; font-size:13px;"></div>
+                <hr style="border-color:#333; margin:16px 0;">
+                <h4 style="text-align:right;">👥 إدارة المجموعات:</h4>
+                <div id="allRoomsList" style="max-height:180px; overflow-y:auto; text-align:right; font-size:13px;"></div>
+            </div>
+            
+            <div id="adminTabStats" class="hidden">
+                <h4 style="text-align:right;">📊 إحصائيات النشاط والتفاعل:</h4>
+                <div id="statsContainer" style="text-align:right;"></div>
+                <div style="position:relative; height:180px; margin-top:12px;">
+                    <canvas id="activityChart"></canvas>
+                </div>
+                <div id="heatMapContainer" style="margin-top:12px;"></div>
+            </div>
+            
+            <div id="adminTabAI" class="hidden">
+                <h4 style="text-align:right;">🤖 تكوين ميزات الذكاء الاصطناعي:</h4>
+                <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                    <input type="checkbox" id="aiSuggestionsEnabled" checked onchange="toggleAISuggestions()">
+                    <span>تفعيل الردود الذكية المقترحة</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                    <input type="checkbox" id="aiTranslationEnabled" checked onchange="toggleAITranslation()">
+                    <span>تفعيل الترجمة الفورية (15 لغة)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                    <input type="checkbox" id="aiSentimentEnabled" checked onchange="toggleAISentiment()">
+                    <span>تفعيل كشف المشاعر التلقائي</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                    <input type="checkbox" id="aiCorrectionEnabled" checked onchange="toggleAICorrection()">
+                    <span>تفعيل التصحيح الإملائي الذكي</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                    <input type="checkbox" id="aiChatbotEnabled" checked onchange="toggleAIChatbot()">
+                    <span>تفعيل المساعد الشخصي الذكي (Chatbot)</span>
+                </label>
+            </div>
+            
+            <button onclick="closeModal('adminModal')" class="action-btn" style="background:#333; margin-top:16px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- ROOM SETTINGS MODAL -->
+    <div id="roomSettingsModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>⚙️ إدارة المجموعة</h3>
+            <div style="margin-bottom:15px;">
+                <p style="text-align:right; color:var(--text-gray); margin:5px 0;">صورة المجموعة:</p>
+                <div class="image-upload-area" onclick="document.getElementById('groupAvatarFile').click()">
+                    <i class="fas fa-cloud-upload-alt" style="font-size:30px; color:var(--text-gray);"></i>
+                    <p style="color:var(--text-gray); margin:5px 0;">اضغط لاختيار صورة للمجموعة</p>
+                    <img id="groupAvatarPreview" class="preview-img" alt="Group Avatar Preview">
+                </div>
+                <input type="file" id="groupAvatarFile" hidden accept="image/*" onchange="previewGroupAvatar(this)">
+                <button onclick="updateGroupAvatar()" class="action-btn" style="margin-top:5px;">💾 حفظ صورة المجموعة</button>
+            </div>
+            <hr style="border-color:#333; margin:15px 0;">
+            <div id="roomAdminControls" class="hidden">
+                <input type="password" id="changeRoomPass" placeholder="🔒 تغيير كلمة سر المجموعة">
+                <button onclick="updateRoomPassword()" class="action-btn">💾 حفظ كلمة السر</button>
+                <button onclick="clearGroupChat()" class="action-btn danger"><i class="fas fa-broom"></i> 🧹 تنظيف كل رسائل المجموعة</button>
+                <hr style="border-color:#333; margin:15px 0;">
+                <h4 style="text-align:right; margin:5px 0;">الأعضاء والإشراف:</h4>
+                <div id="roomMembersList" style="max-height:180px; overflow-y:auto; text-align:right;"></div>
+                <hr style="border-color:#333; margin:15px 0;">
+                <h4 style="text-align:right; margin:5px 0;">قائمة المحظورين:</h4>
+                <div id="bannedMembersList" style="max-height:140px; overflow-y:auto; text-align:right; font-size:13px; color:var(--text-gray);"></div>
+            </div>
+            <p id="roomNotAdminMsg" style="color:var(--text-gray);">أنت عضو في هذه المجموعة (فقط المشرف يمكنه التعديل).</p>
+            <button onclick="closeModal('roomSettingsModal')" class="action-btn" style="background:#333; margin-top:12px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- FRIENDS REQUESTS MODAL -->
+    <div id="friendsModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>👥 طلبات الصداقة المعلقة</h3>
+            <div id="requestsList" style="max-height:220px; overflow-y:auto; text-align:right; margin:12px 0;"></div>
+            <button onclick="closeModal('friendsModal')" class="action-btn" style="background:#333;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- CREATE ROOM MODAL -->
+    <div id="createRoomModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>👥 إنشاء مجموعة جديدة</h3>
+            <input type="text" id="newRoomName" placeholder="اسم المجموعة">
+            <select id="roomType" onchange="document.getElementById('newRoomPass').style.display=this.value==='private'?'block':'none'" style="margin-top:10px;">
+                <option value="public">🌐 عامة (متاحة للجميع)</option>
+                <option value="private">🔒 خاصة (محمية بكلمة سر)</option>
+            </select>
+            <input type="password" id="newRoomPass" placeholder="كلمة سر المجموعة" style="display:none; margin-top:10px;">
+            <button onclick="createRoom()" class="action-btn">✅ إنشاء المجموعة</button>
+            <button onclick="closeModal('createRoomModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- PASSWORD PROMPT MODAL -->
+    <div id="passPromptModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🔒 هذه المجموعة محمية بكلمة سر</h3>
+            <input type="password" id="joinRoomPass" placeholder="أدخل كلمة سر المجموعة">
+            <button onclick="verifyRoomJoin()" class="action-btn">🚪 دخول المجموعة</button>
+            <button onclick="closeModal('passPromptModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profileModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>👤 الملف الشخصي والإعدادات</h3>
+            <div class="image-upload-area" onclick="document.getElementById('profileAvatarFile').click()">
+                <i class="fas fa-cloud-upload-alt" style="font-size:30px; color:var(--text-gray);"></i>
+                <p style="color:var(--text-gray); margin:5px 0;">اضغط لتغيير الصورة الشخصية</p>
+                <img id="profileAvatarPreview" class="preview-img" alt="Profile Preview">
+            </div>
+            <input type="file" id="profileAvatarFile" hidden accept="image/*" onchange="previewProfileAvatar(this)">
+            <button onclick="updateProfileAvatar()" class="action-btn">💾 حفظ الصورة</button>
+            
+            <hr style="border-color:#333; margin:15px 0;">
+            <p style="color:var(--text-gray); text-align:right;">نشر حالة جديدة:</p>
+            <input type="text" id="profileStatusText" placeholder="اكتب حالتك هنا...">
+            <button onclick="updateProfileStatus()" class="action-btn">📢 نشر الحالة</button>
+            
+            <hr style="border-color:#333; margin:15px 0;">
+            <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                <input type="checkbox" id="invisibleMode" onchange="toggleInvisibleMode()">
+                <span>👻 وضع التخفي (الظهور غير متصل)</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; text-align:right; margin:10px 0; cursor:pointer;">
+                <input type="checkbox" id="readReceipts" checked onchange="toggleReadReceipts()">
+                <span>📬 إظهار علامات القراءة</span>
+            </label>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;">
+                <button onclick="setAppPin()" class="action-btn secondary" style="margin:0; font-size:12px;">🔒 تعيين PIN</button>
+                <button onclick="shareReferralCode()" class="action-btn secondary" style="margin:0; font-size:12px;">🔗 رمز الإحالة</button>
+            </div>
+            
+            <button onclick="closeModal('profileModal')" class="action-btn" style="background:#333; margin-top:12px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- ADD STORY MODAL -->
+    <div id="addStoryModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📸 نشر قصة جديدة (Story)</h3>
+            <p style="color:var(--text-gray); text-align:right;">نص القصة:</p>
+            <input type="text" id="storyText" placeholder="اكتب نص القصة...">
+            <p style="color:var(--text-gray); margin-top:12px; text-align:right;">أو أرفق صورة:</p>
+            <div class="image-upload-area" onclick="document.getElementById('storyImageFile').click()">
+                <i class="fas fa-cloud-upload-alt" style="font-size:30px; color:var(--text-gray);"></i>
+                <p style="color:var(--text-gray); margin:5px 0;">اضغط لاختيار صورة للقصة</p>
+                <img id="storyImagePreview" class="preview-img" alt="Story Preview">
+            </div>
+            <input type="file" id="storyImageFile" hidden accept="image/*" onchange="previewStoryImage(this)">
+            <button onclick="addStory()" class="action-btn">📢 نشر القصة الآن</button>
+            <button onclick="closeModal('addStoryModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- STORY VIEWER -->
+    <div id="storyViewer" class="story-viewer hidden">
+        <div class="story-progress"><div class="story-progress-bar" id="storyProgressBar"></div></div>
+        <div class="story-header">
+            <div class="default-avatar" style="width:38px;height:38px;">👤</div>
+            <span id="storyViewerName" style="font-weight:bold; font-size:15px;"></span>
+            <span style="flex:1;"></span>
+            <button class="icon-btn" onclick="closeStoryViewer()" style="color:white;"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="story-content" id="storyViewerContent"></div>
+    </div>
+
+    <!-- PINNED MESSAGES MODAL -->
+    <div id="pinnedMessagesModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📌 الرسائل المثبتة في هذه المحادثة</h3>
+            <div id="pinnedMessagesList" style="max-height:300px; overflow-y:auto; text-align:right; margin:12px 0;"></div>
+            <button onclick="closeModal('pinnedMessagesModal')" class="action-btn" style="background:#333;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- POLL MODAL -->
+    <div id="pollModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📊 إنشاء استطلاع رأي تفاعلي</h3>
+            <input type="text" id="pollQuestion" placeholder="سؤال الاستطلاع">
+            <input type="text" id="pollOption1" placeholder="الخيار الأول" style="margin-top:10px;">
+            <input type="text" id="pollOption2" placeholder="الخيار الثاني" style="margin-top:10px;">
+            <input type="text" id="pollOption3" placeholder="الخيار الثالث (اختياري)" style="margin-top:10px;">
+            <input type="text" id="pollOption4" placeholder="الخيار الرابع (اختياري)" style="margin-top:10px;">
+            <button onclick="createPoll()" class="action-btn">📊 نشر الاستطلاع</button>
+            <button onclick="closeModal('pollModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- GAMES & ACTIVITIES MODAL -->
+    <div id="gamesModal" class="modal hidden">
+        <div class="modal-content" style="max-width:560px;">
+            <h3>🎮 مركز الألعاب والأنشطة التفاعلية</h3>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin:14px 0;">
+                <div class="theme-option" style="background:rgba(74,144,226,0.25);" onclick="startTicTacToe()">
+                    <span style="font-size:26px;">⭕</span><br>
+                    <span style="font-size:12px; font-weight:bold;">إكس أو</span>
+                </div>
+                <div class="theme-option" style="background:rgba(231,76,60,0.25);" onclick="startRockPaperScissors()">
+                    <span style="font-size:26px;">✊</span><br>
+                    <span style="font-size:12px; font-weight:bold;">حجر ورقة مقص</span>
+                </div>
+                <div class="theme-option" style="background:rgba(155,89,182,0.25);" onclick="startChess()">
+                    <span style="font-size:26px;">♟️</span><br>
+                    <span style="font-size:12px; font-weight:bold;">شطرنج</span>
+                </div>
+                <div class="theme-option" style="background:rgba(241,196,15,0.25);" onclick="startDomino()">
+                    <span style="font-size:26px;">🎲</span><br>
+                    <span style="font-size:12px; font-weight:bold;">دومينو</span>
+                </div>
+                <div class="theme-option" style="background:rgba(46,204,113,0.25);" onclick="startCardGame()">
+                    <span style="font-size:26px;">🃏</span><br>
+                    <span style="font-size:12px; font-weight:bold;">كوتشينة</span>
+                </div>
+                <div class="theme-option" style="background:rgba(230,126,34,0.25);" onclick="startQuiz()">
+                    <span style="font-size:26px;">🎯</span><br>
+                    <span style="font-size:12px; font-weight:bold;">مسابقة ثقافية</span>
+                </div>
+                <div class="theme-option" style="background:rgba(26,188,156,0.25);" onclick="startWhiteboard()">
+                    <span style="font-size:26px;">🎨</span><br>
+                    <span style="font-size:12px; font-weight:bold;">لوحة رسم</span>
+                </div>
+                <div class="theme-option" style="background:rgba(52,152,219,0.25);" onclick="startLiveStream()">
+                    <span style="font-size:26px;">📡</span><br>
+                    <span style="font-size:12px; font-weight:bold;">بث مباشر</span>
+                </div>
+                <div class="theme-option" style="background:rgba(233,30,99,0.25);" onclick="startVoiceRoom()">
+                    <span style="font-size:26px;">🎙️</span><br>
+                    <span style="font-size:12px; font-weight:bold;">غرفة صوتية</span>
+                </div>
+            </div>
+            <div id="gameContainer" style="margin-top:14px; min-height:80px;"></div>
+            <button onclick="closeModal('gamesModal')" class="action-btn" style="background:#333; margin-top:14px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- SCHEDULE MESSAGE MODAL -->
+    <div id="scheduleModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>⏰ جدولة رسالة للإرسال التلقائي</h3>
+            <input type="text" id="scheduleText" placeholder="نص الرسالة المجدولة">
+            <input type="datetime-local" id="scheduleTime" style="margin-top:10px;">
+            <button onclick="scheduleMessage()" class="action-btn">⏰ تأكيد الجدولة</button>
+            <button onclick="closeModal('scheduleModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- REMINDER MODAL -->
+    <div id="reminderModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>⏰ إنشاء تذكير</h3>
+            <input type="text" id="reminderText" placeholder="ما الذي تريد تذكره؟">
+            <input type="datetime-local" id="reminderTime" style="margin-top:10px;">
+            <button onclick="createReminder()" class="action-btn">⏰ ضبط التذكير</button>
+            <button onclick="closeModal('reminderModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- NOTE MODAL -->
+    <div id="noteModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>📝 ملاحظة لاصقة سريعة</h3>
+            <textarea id="noteText" placeholder="اكتب ملاحظاتك وأفكارك هنا..." rows="4"></textarea>
+            <button onclick="createNote()" class="action-btn">📝 حفظ الملاحظة</button>
+            <button onclick="closeModal('noteModal')" class="action-btn" style="background:#333;">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- QR CODE CONTAINER MODAL -->
+    <div id="qrModal" class="modal hidden">
+        <div class="modal-content">
+            <h3>🔗 رمز الاستجابة السريعة (QR Code)</h3>
+            <div id="qrCodeContainer" style="margin: 20px auto; padding:10px; background:white; border-radius:12px; display:inline-block;"></div>
+            <p style="color:var(--text-gray); font-size:13px;">امسح الرمز للانضمام الفوري للمحادثة المشفرة</p>
+            <button onclick="closeModal('qrModal')" class="action-btn" style="background:#333; margin-top:14px;">إغلاق</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT FILES IN STRICT REQUIRED ORDER -->
+    <script src="script.js"></script>
+    <script src="smart-auth.js"></script>
+    <script src="all-features.js"></script>
+</body>
+</html>

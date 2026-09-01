@@ -1,0 +1,6 @@
+{
+  "name": "Chat Secure V6",
+  "description": "تطبيق دردشة متكامل فائق الأمان ومزود بالذكاء الاصطناعي، التشفير الشامل، والميزات المتقدمة",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
